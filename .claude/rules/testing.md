@@ -38,7 +38,10 @@ tables from a feature: add them to `--sync`'s TRUNCATE and generator.
 ## After pushing
 
 - `gh run watch <id> --exit-status` in the background, then `check.sh https://fagsem-h2026-team-7.scienta.cloud`
-  (or the suite you touched) and `workflow/bin/feedback.sh`.
+  (or the suite you touched) and `workflow/bin/feedback.sh`. Against production `check.sh` runs only the Hurl suites,
+  two at a time: never point `race.sh`, `consistency.py` or `perf.sh` at production. Their bursts land on top of the
+  harness's and push the single instance past the platform's 80 concurrent requests; at ticks 196-198 that timed
+  out three harness checks (requests the app answered in 100 ms reached it seconds late).
 - `workflow/bin/watch.sh 10` runs in the background all session and exits when anything changes: a new commit on
   `origin/main`, a check's status, a feature released or claimed, the service down. Then `feedback.sh`, tell the user,
   restart it (`KNOWN=1` while a known failure is being worked on, so it only reports changes).

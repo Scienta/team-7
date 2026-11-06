@@ -21,6 +21,12 @@ mkdir -p .local/perf
 
 local=false
 [[ $base == http://localhost:* ]] && local=true
+# Never against production: 60 users on top of the harness's checks pushes the one instance past the platform's
+# 80 concurrent requests and times out harness checks (see .claude/rules/testing.md, "After pushing").
+if ! $local && [[ ${PERF_ALLOW_REMOTE:-} != 1 ]]; then
+    echo "perf.sh: refusing to load $base; run it against a local service (PERF_ALLOW_REMOTE=1 to override)" >&2
+    exit 2
+fi
 
 # The load test's own speakers (load-*, spk-* emails) and everything hanging off them, so every run starts from the
 # same volume and runs stay comparable.

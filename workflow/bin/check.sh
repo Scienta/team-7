@@ -27,7 +27,16 @@ fi
 # a cell our suite occupies, even for a moment, can make a harness check fail. So whatever writes to the
 # programme runs only against a local service (scheduling-*.hurl here, and the scheduling parts of
 # consistency.py and race.sh, which check the base URL themselves).
+jobs=4
 if [[ $base != http://localhost* && $base != http://127.0.0.1* ]]; then
+    # Production is one instance that the harness is checking at the same moment, and beyond 80 concurrent requests
+    # the platform queues them. Our race bursts (40-60 requests at once) and the consistency matrix (~1500 requests)
+    # on top of the harness's own bursts made its requests time out: talks/check-4, acceptance/check-5 and
+    # ratings-cr/check-4 went FAULTY for exactly the eight minutes a check.sh against production ran (ticks
+    # 196-198). So against anything but a local service: the Hurl suites only, two at a time; no races, no matrix.
+    race=false
+    jobs=2
+    echo "(not local: Hurl suites only, 2 at a time; race.sh and consistency.py run locally only, they'd load production)"
     kept=()
     for f in "${files[@]}"; do [[ $(basename "$f") == scheduling-* ]] || kept+=("$f"); done
     files=("${kept[@]}")
@@ -43,7 +52,7 @@ done
 
 rc=0
 run="$(date +%s)$RANDOM"
-hurl --test --jobs 4 --variable "base_url=$base" --variable "run=$run" \
+hurl --test --jobs "$jobs" --variable "base_url=$base" --variable "run=$run" \
     --report-html .local/hurl-report "${parallel[@]}" || rc=1
 if ((${#serial[@]} > 0)); then
     hurl --test --jobs 1 --variable "base_url=$base" --variable "run=$run" "${serial[@]}" || rc=1

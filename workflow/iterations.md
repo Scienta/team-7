@@ -368,3 +368,20 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
 - **Evidence:** same data, new count 0.13 ms (12x). `verify` green. `check.sh`, `compare.sh`, image rehearsal,
   `perf.sh`: see below.
 - **Pushed:** pending.
+
+## 31. Our own production check timed out three harness checks
+
+- **Problem:** at ticks 196–198 `talks/check-4`, `acceptance/check-5` and `ratings-cr/check-4` went FAULTY with no
+  response at all, on parallel bursts. The access log shows the app answered those requests in 13–118 ms, seconds
+  after the harness sent them: they waited in front of the app. A `check.sh` against production (race bursts of
+  40–60 requests, a ~1500-request matrix) ran 14:37:51–14:46:02, exactly the failing window, on top of the harness's
+  bursts on one instance that queues beyond 80 concurrent requests. All three recovered at tick 199, once it ended.
+- **Change:** `check.sh` against anything but localhost runs the Hurl suites only, 2 at a time (no `race.sh`, no
+  `consistency.py`); `perf.sh` refuses a non-local base (`PERF_ALLOW_REMOTE=1` to override); rule in
+  `.claude/rules/testing.md`, "After pushing". Checked the suspected single-talk query on production-shaped data:
+  the planner pushes `t.id = ?` into the aggregates (index scans, 0.15 ms), so no change there; the full list is
+  17 ms of SQL locally and Rune moved its JSON into Postgres (`127cedd`).
+- **Evidence:** the access log and timeline above; local `check.sh` ALL GREEN on `127cedd` (matrix consistent);
+  the non-local mode picks `--jobs 2` and skips races (seen against an unroutable address); `perf.sh` against the
+  team URL exits 2.
+- **Pushed:** tooling only, `[no deploy]`.
