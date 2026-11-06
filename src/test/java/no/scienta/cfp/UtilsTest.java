@@ -74,4 +74,12 @@ class UtilsTest {
     private static Date utc(int y, int mo, int d, int h, int mi) {
         return Date.from(java.time.ZonedDateTime.of(y, mo, d, h, mi, 0, 0, java.time.ZoneOffset.UTC).toInstant());
     }
+
+    @Test
+    void legacyTimestampsAreUtcWithMillisAndPlusZeroOffset() {
+        long millis = utc(2026, 11, 4, 23, 30).getTime() + 5_007;  // 23:30:05.007 UTC, already the 5th in Oslo
+        assertEquals("2026-11-04T23:30:05.007+00:00", Utils.legacyTimestamp(millis));
+        assertEquals("2026-11-04", Utils.legacyDate(millis));
+        assertEquals("2026-11-05T00:00:00.000+00:00", Utils.legacyTimestamp(utc(2026, 11, 5, 0, 0).getTime()));
+    }
 }

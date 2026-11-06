@@ -39,7 +39,7 @@ public class ReportController {
                     .append(Utils.capitalize(t.level)).append(';')
                     .append(Utils.csv((String) speaker.get("name"))).append(';')
                     .append(t.status).append(';')
-                    .append(Utils.norwegianDate(t.submittedAt)).append(';')
+                    .append(Utils.norwegianDate(new java.util.Date(t.submittedAtMillis))).append(';')
                     .append(t.averageRating == null ? "" : String.valueOf(t.averageRating).replace('.', ',')).append(';')
                     .append(t.ratingCount)
                     .append('\n');

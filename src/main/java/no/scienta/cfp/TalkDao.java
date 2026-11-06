@@ -2,7 +2,6 @@ package no.scienta.cfp;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Date;
 import java.util.List;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,8 +30,9 @@ public class TalkDao {
         t.status = rs.getString("status");
         t.speakerId = rs.getLong("speaker_id");
         long millis = rs.getLong("submitted_at");
-        t.submittedAt = new Date(millis);
-        t.submittedOn = Utils.toSqlDate(millis);
+        t.submittedAtMillis = millis;
+        t.submittedAt = Utils.legacyTimestamp(millis);
+        t.submittedOn = Utils.legacyDate(millis);
         t.ratingCount = rs.getInt("rating_count");
         t.averageRating = average(rs.getLong("rating_total"), t.ratingCount);
         return t;

@@ -38,13 +38,19 @@ public class Utils {
         }
     }
 
-    /**
-     * Epoch millis to a date-only java.sql.Date (UTC day).
-     */
-    public static java.sql.Date toSqlDate(long millis) {
-        SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd");
-        f.setTimeZone(UTC);
-        return java.sql.Date.valueOf(f.format(new Date(millis)));
+    private static final java.time.format.DateTimeFormatter LEGACY_TIMESTAMP =
+            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'+00:00'").withZone(java.time.ZoneOffset.UTC);
+    private static final java.time.format.DateTimeFormatter LEGACY_DATE =
+            java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(java.time.ZoneOffset.UTC);
+
+    /** Epoch millis as "2026-11-04T12:30:05.123+00:00": UTC, always milliseconds, never Z. */
+    public static String legacyTimestamp(long millis) {
+        return LEGACY_TIMESTAMP.format(java.time.Instant.ofEpochMilli(millis));
+    }
+
+    /** Epoch millis as the UTC date, "2026-11-04". */
+    public static String legacyDate(long millis) {
+        return LEGACY_DATE.format(java.time.Instant.ofEpochMilli(millis));
     }
 
     /**

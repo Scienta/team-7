@@ -46,3 +46,18 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
 - **Evidence:** JUnit 43 green (JDK 25, Testcontainers); `check.sh` ALL GREEN against the jar on JDK 25 (this
   sandbox's Docker builds can't reach Maven Central, so `local.sh up` and `compare.sh` weren't run).
 - **Deployed:** pending merge.
+
+## 5. Spring Boot 4 (drip feature `spring-boot-4`)
+
+- **Problem:** the service ran Spring Boot 3.5.16; the feature request asks for Boot 4 with the base specs' formats
+  unchanged and a truthful `/actuator/info`. A straight upgrade broke the wire format: Jackson 3 wrote
+  `submittedAt` as `…824Z` (spec: `+00:00`), `submittedOn` as a timestamp in the server's zone
+  (`2026-11-05T23:00:00.000Z`, the wrong day), sorted fields alphabetically, and error bodies lost `message`.
+- **Change:** Boot 4.1.2 (`spring-boot-starter-webmvc`, Testcontainers 2); `submittedAt`/`submittedOn` are strings
+  formatted in UTC by `Utils.legacyTimestamp`/`legacyDate`; `spring.jackson.mapper.sort-properties-alphabetically=false`;
+  `server.error.*` → `spring.web.error.*`; `spring.jackson.json.read.allow-java-comments`. New `WireFormatTest` pins
+  the exact JSON of the base specs and the running versions on `/actuator/info`.
+- **Evidence:** JUnit 52 green (1 skipped, the old disabled one); `check.sh` ALL GREEN on :8080 and on the
+  linux/amd64 image on :8081 (`/actuator/info`: java 25.0.5, springBoot 4.1.2, springFramework 7.0.10);
+  `compare.sh origin/main`: 30 of 31 same, the one diff is Jackson's wording inside a malformed-JSON 400 message.
+- **Pushed:** see below.
