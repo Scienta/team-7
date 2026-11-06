@@ -158,3 +158,18 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   404.
 - **Evidence:** skips cleanly on `9680a89` (36 existing checks green). Not yet run against an implementation.
 - **Pushed:** held until a teammate pushes (per the user), then rebased on top of their push.
+
+## 15. Workshop registration (drip feature `workshop-registration`)
+
+- **Problem:** new feature at tick 67: attendees register for accepted workshops, 20 seats each under a rush, one
+  per email (any case) per workshop, list in registration order.
+- **Change:** `POST`/`GET /workshops/{id}/registrations` (`WorkshopController`, `WorkshopService`,
+  `RegistrationDao`); table `registration` with a unique index on `(talk_id, lower(email))`. Registration locks
+  the workshop's talk row (`FOR UPDATE`), then checks status, duplicate and count. Status codes in the new
+  `workflow/decisions/workshop-registration.md`: 404 not a workshop, 400 bad name/email, 409 not accepted /
+  duplicate / full.
+- **Evidence:** `WorkshopRegistrationSpecTest` (29 black-box tests from the spec and decisions, written by the
+  spec-test-writer recipe without reading `src/main`) and JUnit 85 green; 5 new `workflow/hurl/workshops-*.hurl`
+  and the teammate's `race.sh` workshop checks (`84d31fd`);
+  `check.sh` ALL GREEN on :8080 and on the linux/amd64 image; `compare.sh` EQUIVALENT to `9680a89` (31 requests).
+- **Pushed:** see below.
