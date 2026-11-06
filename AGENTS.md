@@ -56,18 +56,25 @@ how you work is your team's call, and your own instructions go in `.claude/rules
 - The filesystem is ephemeral. No other external dependencies. Any stack is allowed.
 - One instance, may scale to zero. Beyond 80 concurrent requests the platform answers `503` itself.
 
-## Fast lane: `[fast]` in the commit message (team-7)
+## Deploying from `main`: `[no deploy]` and `[fast]` (team-7)
 
-A normal push to `main` deploys only after the test suite passes (`quality` job in `.github/workflows/deploy.yml`).
-For a fix to a check that's **losing points right now**, put `[fast]` in the message of the commit you push to
-`main` (for a merged PR: in its title, which ends up in the merge commit), or run the deploy workflow by hand with
-`fast` checked. The fast lane skips the test gate and deploys as soon as the image is built, without re-tagging.
+Everything goes on `main`, but **only fixes and new features should deploy.** Every deploy switches the
+container to a new revision, and requests can fail while it does (the harness counts those), so don't deploy
+what doesn't need to be live. A push to `main` deploys after the test suite passes, unless its last commit's
+message says otherwise (for a merged PR: its title, which ends up in the merge commit):
 
-- Still checked: the Docker build compiles the code, and the rollout rolls back if `/health` doesn't come up.
-- **Not checked: the tests.** Run them locally first (`./mvnw verify`, `workflow/bin/check.sh`) and say so in the
-  commit. The next normal push to `main` tests everything again, the fast commit included, and won't deploy if a
-  test fails.
-- Only for a fix to a failing check, never for features or refactors. Only the last commit of a push counts.
+- **`[no deploy]`**: docs, `workflow/`, `.claude/`, specs, test-only and tooling changes. No job runs: no tests,
+  no image, no rollout, no Actions minutes. It goes live with the next push that deploys, whose tests cover it.
+  So code that would change the service's behaviour doesn't belong in a `[no deploy]` commit.
+- **(no tag)**: fixes and features. Tests, then image, then rollout (`.github/workflows/deploy.yml`).
+- **`[fast]`**: a fix to a check that's **losing points right now**. Skips the test gate and deploys as soon as the
+  image is built, without re-tagging. Still checked: the Docker build compiles the code, and the rollout rolls
+  back if `/health` doesn't come up. **Not checked: the tests**, so run them locally first (`./mvnw verify`,
+  `workflow/bin/check.sh`) and say so in the commit. The next normal push tests everything again, the fast commit
+  included, and won't deploy if a test fails. Never for features or refactors.
+
+Only the last commit of a push counts. `[no deploy]` wins over `[fast]`. Running the deploy workflow by hand
+always deploys (check `fast` for the fast lane).
 
 ## Platform gotchas
 

@@ -223,3 +223,12 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   it's consistent. The 9 replays fail on exactly the version that had their bug (`b7c525a`: co-speakers;
   `675d69b`: workshop) and pass now. `check.sh`: 31 Hurl files + matrix + races green.
 - **Pushed:** see git log (tooling; waits for a teammate's push, as the newest commit on main is mine).
+
+## 18. Every push to main deployed, even when nothing live changed
+
+- **Problem:** docs, workflow, rules and test-only pushes each ran the tests, built an image and switched the
+  container to a new revision: Actions minutes for nothing, and a switchover in which requests can fail (tick 36).
+- **Change:** `[no deploy]` in the pushed commit's message skips every job in `deploy.yml`; it wins over `[fast]`;
+  a manual run always deploys. `AGENTS.md` now says which changes deploy (fixes, features) and which don't.
+- **Evidence:** `actionlint` clean; job conditions checked for normal, `[fast]`, `[no deploy]`, both, and manual runs.
+- **Deployed:** this commit is itself `[no deploy]`.
