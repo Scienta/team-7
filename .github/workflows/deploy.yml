@@ -28,7 +28,30 @@ permissions:
   contents: read
 
 jobs:
+  # The quality gate (workflow/quality-gate.md): the full test suite. Deploy needs it, so a failing
+  # test never deploys.
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+      - name: Cache ~/.m2
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.m2/wrapper
+          key: m2-${{ hashFiles('**/pom.xml', '.mvn/wrapper/maven-wrapper.properties') }}
+          restore-keys: m2-
+      - name: Test suite
+        run: ./mvnw -B verify
+
   deploy:
+    needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -72,27 +95,3 @@ jobs:
           echo "error_message: $(scw container container get "$SCW_CONTAINER_ID" -o json | jq -r '.error_message // "(none)"')" || true
           .github/fagdag/logs.sh --tail 200 --since "$ROLLOUT_STARTED_AT"
 
-  # The unit tests run after the deploy and are NOT a gate: the suite is thin and partly wrong.
-  # To make them one, move this job before deploy and add `needs: tests` to the deploy job.
-  tests:
-    needs: deploy
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "25"
-      - name: Cache ~/.m2
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.m2/repository
-            ~/.m2/wrapper
-          key: m2-${{ hashFiles('**/pom.xml', '.mvn/wrapper/maven-wrapper.properties') }}
-          restore-keys: m2-
-      - name: Unit tests
-        run: ./mvnw -B test
