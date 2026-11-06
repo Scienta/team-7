@@ -106,7 +106,12 @@ public class ConferenceService {
         if (!email.equalsIgnoreCase((String) existing.get("email")) && speakerDao.emailTaken(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
         }
-        speakerDao.update(id, name, email, bio);
+        try {
+            speakerDao.update(id, name, email, bio);
+        } catch (DuplicateKeyException e) {
+            // another request took the email between the check above and this update
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
+        }
         return getSpeaker(id);
     }
 

@@ -105,3 +105,12 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
 - **Evidence:** live lines for 201/200/404/400 incl. `POST /speakers/ 201`; unit test for the 500 path;
   check.sh ALL GREEN.
 - **Deployed:** pending merge. Read with `.github/fagdag/logs.sh | grep ' access '`.
+
+## 7. Two speakers updated to the same email at once: a 500
+
+- **Problem:** `PUT /speakers/{id}` checks the email is free, then updates; under concurrent updates to one email the
+  loser hit the unique index and got `500` (with the SQL in the message) instead of `409` like registration.
+- **Change:** `updateSpeaker` turns the `DuplicateKeyException` into `409`. 1 file + a race test in `SpeakersTest`.
+- **Evidence:** `concurrentUpdatesToOneEmailHaveOneWinnerAndNo500` (10 parallel PUTs, one email): without the fix
+  3/3 runs failed with a 500, with it 3/3 green.
+- **Deployed:** pending merge.
