@@ -1,5 +1,7 @@
 package no.scienta.cfp;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Date;
 import java.util.List;
 
@@ -11,7 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public class TalkDao {
 
-    private static final String COLUMNS = "id, title, format, duration, level, status, speaker_id, submitted_at";
+    // Each talk with its rating count and total, so a list is one query instead of one per talk.
+    private static final String SELECT = "SELECT t.id, t.title, t.format, t.duration, t.level, t.status, t.speaker_id, "
+            + "t.submitted_at, COALESCE(r.cnt, 0) AS rating_count, COALESCE(r.total, 0) AS rating_total FROM talk t "
+            + "LEFT JOIN (SELECT talk_id, COUNT(*) AS cnt, SUM(score) AS total FROM rating GROUP BY talk_id) r "
+            + "ON r.talk_id = t.id";
 
     private final JdbcTemplate jdbc;
 
@@ -27,24 +33,34 @@ public class TalkDao {
         long millis = rs.getLong("submitted_at");
         t.submittedAt = new Date(millis);
         t.submittedOn = Utils.toSqlDate(millis);
+        t.ratingCount = rs.getInt("rating_count");
+        t.averageRating = average(rs.getLong("rating_total"), t.ratingCount);
         return t;
     };
+
+    // 1 decimal, half up (4.25 -> 4.3); null when nobody rated
+    private static Double average(long total, int count) {
+        if (count == 0) {
+            return null;
+        }
+        return BigDecimal.valueOf(total).divide(BigDecimal.valueOf(count), 1, RoundingMode.HALF_UP).doubleValue();
+    }
 
     public TalkDao(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }
 
     public TalkDto findById(long id) {
-        List<TalkDto> list = jdbc.query("SELECT " + COLUMNS + " FROM talk WHERE id = ?", mapper, id);
+        List<TalkDto> list = jdbc.query(SELECT + " WHERE t.id = ?", mapper, id);
         return list.isEmpty() ? null : list.get(0);
     }
 
     public List<TalkDto> findBySpeaker(long speakerId) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM talk WHERE speaker_id = ? ORDER BY id", mapper, speakerId);
+        return jdbc.query(SELECT + " WHERE t.speaker_id = ? ORDER BY t.id", mapper, speakerId);
     }
 
     public List<TalkDto> findAll() {
-        return jdbc.query("SELECT " + COLUMNS + " FROM talk ORDER BY id", mapper);
+        return jdbc.query(SELECT + " ORDER BY t.id", mapper);
     }
 
     public boolean exists(long id) {

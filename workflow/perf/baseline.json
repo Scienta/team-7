@@ -1,0 +1,15 @@
+{
+  "version": "local-8b4cefa",
+  "requests_per_s": 1023.6555502075245,
+  "p95_ms": {
+    "POST /speakers": 137.62924999999996,
+    "PUT /talks/{id}/ratings/{reviewerId}": 134.2358,
+    "GET /speakers/{id}": 127.576,
+    "GET /talks": 161.6042,
+    "GET /speakers/{id}/talks": 136.0832499999999,
+    "POST /talks": 131.22025,
+    "GET /talks?sort=rating": 155.2142999999999,
+    "GET /talks?speakerId": 127.65699999999995,
+    "GET /talks/{id}": 127.56199999999997
+  }
+}
