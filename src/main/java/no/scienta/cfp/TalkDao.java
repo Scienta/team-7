@@ -70,6 +70,50 @@ public class TalkDao {
         return BigDecimal.valueOf(sum).divide(BigDecimal.valueOf(n), 2, RoundingMode.HALF_EVEN).doubleValue();
     }
 
+    // The talk lists as JSON text built by Postgres, byte for byte what Jackson writes for a List<TalkDto>, so a list
+    // of thousands of talks doesn't create thousands of objects in Java (GET /talks took 0.6-2.5 s server-side at
+    // ~9500 talks, and the harness gives up after ~1 s). Keep in step with TalkDto's fields and average() above.
+    //   q: the shown average x 100, rounded half even in integers (trimmed from TRIM_FROM ratings), null if unrated
+    private static final String LIST_ROWS = "WITH b AS (SELECT t.id, t.title, t.format, t.duration, t.level, t.status, "
+            + "t.speaker_id, t.submitted_at, COALESCE(r.cnt, 0) AS cnt, c.ids, "
+            + "CASE WHEN r.cnt >= " + TRIM_FROM + " THEN r.total - r.lo - r.hi ELSE r.total END AS s, "
+            + "CASE WHEN r.cnt >= " + TRIM_FROM + " THEN r.cnt - 2 ELSE r.cnt END AS n "
+            + "FROM talk t "
+            + "LEFT JOIN (SELECT talk_id, COUNT(*) AS cnt, SUM(score) AS total, MIN(score) AS lo, MAX(score) AS hi "
+            + "FROM rating GROUP BY talk_id) r ON r.talk_id = t.id "
+            + "LEFT JOIN (SELECT talk_id, array_agg(speaker_id ORDER BY seq) AS ids FROM talk_co_speaker GROUP BY talk_id) c "
+            + "ON c.talk_id = t.id {WHERE}), "
+            + "q AS (SELECT b.*, CASE WHEN n IS NULL THEN NULL ELSE s * 100 / n + CASE "
+            + "WHEN 2 * (s * 100 % n) > n THEN 1 WHEN 2 * (s * 100 % n) < n THEN 0 ELSE (s * 100 / n) % 2 END END AS q FROM b) "
+            + "SELECT COALESCE('[' || string_agg('{\"id\":' || id"
+            + " || ',\"title\":' || to_json(title)::text"
+            + " || ',\"format\":' || to_json(format)::text"
+            + " || ',\"level\":' || COALESCE(to_json(level)::text, 'null')"
+            + " || ',\"speakerId\":' || speaker_id"
+            + " || ',\"durationMinutes\":' || COALESCE(duration, 0)"
+            + " || ',\"status\":' || to_json(status)::text"
+            + " || ',\"submittedAt\":\"' || to_char(to_timestamp(submitted_at / 1000) AT TIME ZONE 'UTC', "
+            + "'YYYY-MM-DD\"T\"HH24:MI:SS') || '.' || lpad((submitted_at % 1000)::text, 3, '0') || '+00:00\"'"
+            + " || ',\"submittedOn\":\"' || to_char(to_timestamp(submitted_at / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD') || '\"'"
+            // a double as Java prints it: 4.0, 4.5, 4.25
+            + " || ',\"averageRating\":' || CASE WHEN q IS NULL THEN 'null' WHEN q % 100 = 0 THEN (q / 100) || '.0' "
+            + "WHEN q % 10 = 0 THEN (q / 100) || '.' || (q % 100 / 10) ELSE (q / 100) || '.' || lpad((q % 100)::text, 2, '0') END"
+            + " || ',\"ratingCount\":' || cnt"
+            + " || ',\"coSpeakerIds\":[' || COALESCE(array_to_string(ids, ','), '') || ']}'"
+            + ", ',' ORDER BY {ORDER}) || ']', '[]') FROM q";
+    private static final String BY_ID = "id";
+    // the ranking: rated first by the shown average, then more reviewers, then oldest; unrated last
+    private static final String BY_RATING = "q IS NULL, q DESC, cnt DESC, id";
+
+    /** GET /talks, optionally one speaker's and/or ranked, as JSON text (see LIST_ROWS). */
+    public String listJson(Long speakerId, boolean byRating) {
+        // placeholders, not String.format: the SQL has its own % (modulo)
+        String sql = LIST_ROWS.replace("{WHERE}", speakerId == null ? "" : "WHERE t.speaker_id = ?")
+                .replace("{ORDER}", byRating ? BY_RATING : BY_ID);
+        return speakerId == null ? jdbc.queryForObject(sql, String.class)
+                : jdbc.queryForObject(sql, String.class, speakerId);
+    }
+
     public TalkDao(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
     }

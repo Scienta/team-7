@@ -178,6 +178,21 @@ public class ConferenceService {
         return talks;
     }
 
+    /** The same lists as {@link #listTalks} and {@link #getTalksForSpeaker}, as JSON built by the database. */
+    public String listTalksJson(String sort, Long speakerId) {
+        if (sort != null && !sort.equals("rating")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sort must be 'rating'");
+        }
+        return talkDao.listJson(speakerId, "rating".equals(sort));
+    }
+
+    public String getTalksForSpeakerJson(long speakerId) {
+        if (speakerDao.findById(speakerId) == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "speaker not found");
+        }
+        return talkDao.listJson(speakerId, false);
+    }
+
     public List<TalkDto> listTalks(String sort, Long speakerId) {
         if (sort != null && !sort.equals("rating")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sort must be 'rating'");

@@ -34,10 +34,11 @@ public class TalkController {
         return service.getTalk(id);
     }
 
-    @GetMapping("/talks")
-    public List<TalkDto> list(@RequestParam(required = false) String sort,
-                              @RequestParam(required = false) Long speakerId) {
-        return service.listTalks(sort, speakerId);
+    // JSON built by the database: a list of thousands of talks without thousands of objects (TalkDao.LIST_ROWS)
+    @GetMapping(value = "/talks", produces = "application/json")
+    public String list(@RequestParam(required = false) String sort,
+                       @RequestParam(required = false) Long speakerId) {
+        return service.listTalksJson(sort, speakerId);
     }
 
     @PutMapping("/talks/{id}/status")

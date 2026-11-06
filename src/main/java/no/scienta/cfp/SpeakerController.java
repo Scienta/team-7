@@ -43,9 +43,9 @@ public class SpeakerController {
         return service.updateSpeaker(id, body.get("name"), body.get("email"), body.get("bio"));
     }
 
-    @GetMapping("/{id}/talks")
-    public List<TalkDto> talks(@PathVariable Long id) {
-        return service.getTalksForSpeaker(id);
+    @GetMapping(value = "/{id}/talks", produces = "application/json")
+    public String talks(@PathVariable Long id) {
+        return service.getTalksForSpeakerJson(id);
     }
 
     // admin only, not in the API docs
