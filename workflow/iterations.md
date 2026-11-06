@@ -95,7 +95,7 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
 - **Evidence:** old and new jar side by side on 1533-1580 talks: CSV byte-identical; ~230 → ~25 ms locally.
 - **Deployed:** pending merge.
 
-## 6. No request logging (backlog R3)
+## 7. No request logging (backlog R3)
 
 - **Problem:** the app logged no requests, so a FAULTY check or a timeout (speakers/check-4 at tick 36) left nothing
   in the logs to see what was sent, what we answered or how long it took.
@@ -106,7 +106,7 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   check.sh ALL GREEN.
 - **Deployed:** pending merge. Read with `.github/fagdag/logs.sh | grep ' access '`.
 
-## 7. Two speakers updated to the same email at once: a 500
+## 8. Two speakers updated to the same email at once: a 500
 
 - **Problem:** `PUT /speakers/{id}` checks the email is free, then updates; under concurrent updates to one email the
   loser hit the unique index and got `500` (with the SQL in the message) instead of `409` like registration.
@@ -115,7 +115,7 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   3/3 runs failed with a 500, with it 3/3 green.
 - **Deployed:** pending merge.
 
-## 8. Dead and misleading code (backlog R5, part)
+## 9. Dead and misleading code (backlog R5, part)
 
 - **Problem:** `Utils.MAX_TALKS = 5` (unused; the limit is 3, hard-coded twice), a duration `switch` duplicating
   `DURATIONS` with a silent 45-minute default, `Utils.today()` in the JVM's time zone, and a README describing Java 8,
