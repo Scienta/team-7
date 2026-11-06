@@ -66,15 +66,11 @@ public class WorkshopService {
         }
     }
 
+    // Any existing talk has a list; one that isn't a workshop can't take registrations, so its list is empty.
     public List<Map<String, Object>> list(long workshopId) {
-        requireWorkshop(workshopId);
-        return registrations.findByWorkshop(workshopId);
-    }
-
-    private void requireWorkshop(long workshopId) {
-        Map<String, Object> talk = registrations.talk(workshopId);
-        if (talk == null || !"WORKSHOP".equals(talk.get("format"))) {
+        if (registrations.talk(workshopId) == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "workshop not found");
         }
+        return registrations.findByWorkshop(workshopId);
     }
 }

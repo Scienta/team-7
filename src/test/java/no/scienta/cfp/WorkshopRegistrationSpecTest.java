@@ -192,7 +192,7 @@ class WorkshopRegistrationSpecTest {
     }
 
     @Test
-    @DisplayName("R2: a talk that is not a workshop takes no registrations (409) and has no list (404)")
+    @DisplayName("R2: a talk that is not a workshop takes no registrations (409) and its list is empty")
     void r2NonWorkshopTalk() throws Exception {
         String speaker = newSpeaker();
         HttpResponse<String> talk = http.send(request("POST", "/talks",
@@ -201,7 +201,9 @@ class WorkshopRegistrationSpecTest {
         assertEquals(201, talk.statusCode(), talk.body());
         String id = idOf(talk.body());
         assertEquals(409, register(id, "Ada", uniqueEmail()).statusCode());
-        assertEquals(404, get(id).statusCode());
+        HttpResponse<String> list = get(id);
+        assertEquals(200, list.statusCode(), list.body());
+        assertEquals("[]", list.body());
     }
 
     @Test

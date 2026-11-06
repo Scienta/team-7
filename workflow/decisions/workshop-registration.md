@@ -7,8 +7,9 @@ These are ours.
 
 - A "workshop" is a talk with format `WORKSHOP`. A talk that doesn't exist is `404` for both `POST` and
   `GET /workshops/{id}/registrations`. An existing talk that isn't a workshop is `409` on `POST` (it takes no
-  registrations, like a workshop that isn't accepted) and `404` on `GET`. Changed from `404` on `POST` after the
-  harness's workshop-registration/check-2 failed on exactly that request (tick 80).
+  registrations, like a workshop that isn't accepted) and `200 []` on `GET` (it exists; nobody is registered).
+  Changed from `404` for both after the harness's workshop-registration/check-2 failed on exactly those requests
+  (POST at tick 80, then GET at tick 88 once the POST passed).
 
 ## POST /workshops/{id}/registrations
 
@@ -29,6 +30,7 @@ Checked in this order; the first that applies wins, and a rejected request chang
 
 ## GET /workshops/{id}/registrations
 
+- `404` when no talk has that id; `200 []` for a talk that isn't a workshop.
 - `200` with every registration for a `WORKSHOP` talk, in the order they were made (oldest first), whatever the
   workshop's status now: a workshop withdrawn after people registered still lists them. `[]` when there are none.
 
