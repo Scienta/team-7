@@ -53,6 +53,9 @@ if $race; then
     python3 workflow/bin/consistency.py "$base" | tail -1 || rc=1
     [[ ${PIPESTATUS[0]} == 0 ]] || { python3 workflow/bin/consistency.py "$base" | grep FAIL | head -20; rc=1; }
     echo
+    # the 3-talk cap and co-speaking, original or submission-cap-cr (required once that's claimed)
+    python3 workflow/bin/cap_check.py "$base" | tail -1 || rc=1
+    [[ ${PIPESTATUS[0]} == 0 ]] || { python3 workflow/bin/cap_check.py "$base" | grep FAIL | head -10; rc=1; }
     # the averaging rules, original or ratings-cr (required once ratings-cr is claimed on the harness)
     python3 workflow/bin/ratings_avg.py "$base" | tail -1 || rc=1
     [[ ${PIPESTATUS[0]} == 0 ]] || { python3 workflow/bin/ratings_avg.py "$base" | grep FAIL | head -10; rc=1; }
