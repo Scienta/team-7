@@ -11,6 +11,11 @@ along the same paths, but only requests that can't change data:
     speakerId (400), a score of 9 (400), a workshop registration without a name (400), and removing a talk's own main
     speaker as a co-speaker (404: the main speaker can never be a co-speaker, so the DELETE matches no row).
 
+Gently: at tick 137 (deploy 78030f5) the warm-up itself ran while the harness's checks did, 12 requests at a time
+including full talk lists (~6000 talks, ~1.4 s each on the platform): the service answered its own warm-up at
+p50 400 ms / max 3.8 s, and 27 harness checks got no answer (-19 points). So no full lists in the rounds (the one
+read that samples talk ids is sequential, before them), 3 at a time, 3 rounds, 20 s at most.
+
 Prints each round's status counts and latencies, so the log shows the warm-up taking effect. Always exits 0: it's a
 best effort, never a reason to fail anything.
 
@@ -44,8 +49,8 @@ def call(base, method, path, body=None, timeout=15):
 
 def requests_for(talks):
     """One round: every safe request, once per sampled talk (with its main speaker)."""
-    out = [("GET", "/health", None), ("GET", "/actuator/info", None),
-           ("GET", "/talks", None), ("GET", "/talks?sort=rating", None)]
+    # No full talk lists here: they're the heaviest request and grow with the data (see the docstring).
+    out = [("GET", "/health", None), ("GET", "/actuator/info", None)]
     for talk_id, speaker_id in talks:
         out += [
             ("GET", f"/talks/{talk_id}", None),
@@ -75,9 +80,9 @@ def pct(values, q):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("base")
-    ap.add_argument("--rounds", type=int, default=6)
-    ap.add_argument("--parallel", type=int, default=12)
-    ap.add_argument("--seconds", type=int, default=90, help="stop after this long, whatever the rounds")
+    ap.add_argument("--rounds", type=int, default=3)
+    ap.add_argument("--parallel", type=int, default=3)
+    ap.add_argument("--seconds", type=int, default=20, help="stop after this long, whatever the rounds")
     args = ap.parse_args()
     base = args.base.rstrip("/")
     deadline = time.monotonic() + args.seconds
@@ -90,7 +95,7 @@ def main():
     except Exception as e:
         print(f"::warning::warm-up: couldn't list talks ({e}); warming up with reads of /health and /talks only")
         talks = []
-    talks = random.sample(talks, min(len(talks), 10))
+    talks = random.sample(talks, min(len(talks), 5))
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.parallel) as pool:
         for n in range(1, args.rounds + 1):
