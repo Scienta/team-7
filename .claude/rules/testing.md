@@ -14,11 +14,22 @@ commit, gate it, push it right away (no waiting for earlier deploys), verify the
    `check.sh <url> <file.hurl>` runs one suite.
 4. `workflow/bin/compare.sh`: runs `HEAD` on :8082 beside the working tree and diffs 31 reads and rejected writes.
    `EQUIVALENT` for refactors and perf work; for a fix, the only differences are the intended ones.
-5. Perf work: `workflow/bin/perf.sh` (k6, 60 users, 1500 talks) against `workflow/perf/baseline.json`.
+5. Perf work: `workflow/bin/perf.sh` (k6, 60 users, on production-shaped data) against `workflow/perf/baseline.json`.
+   The baseline records its talk count; on data more than 5 % apart it isn't compared: re-baseline.
 6. Changed `Dockerfile`, `pom.xml` or `schema.sql`: also `local.sh image` (linux/amd64, like `deploy.yml`) and
    `check.sh http://localhost:8081`.
 
-JUnit runs in CI after each deploy (`tests` job in `deploy.yml`, not a gate). Check that run after pushing.
+JUnit runs in CI before each deploy (`quality` job in `deploy.yml`). Check that run after pushing.
+
+## Local data vs production
+
+We can't read the deployed database, only its API. `workflow/bin/dbdrift.sh` profiles both through `/talks` (volume,
+format/level/status mix, co-speakers, ratings per talk, accepted workshops) and exits 1 with what drifted.
+`dbdrift.sh --sync` rebuilds the local test data in production's shape (synthetic rows, ~2 s; the local database is
+scratch). Keep `dbdrift.sh --watch 600` running in the background; on drift, `--sync` and re-run the gate.
+**Never `--sync` (or `perf.sh`, which syncs) while a check runs against the local database**: its TRUNCATE wipes
+rows mid-test (it once made the workshop race checks fail on a correct build). New
+tables from a feature: add them to `--sync`'s TRUNCATE and generator.
 
 ## After pushing
 

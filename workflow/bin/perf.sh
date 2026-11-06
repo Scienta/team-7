@@ -3,12 +3,13 @@
 # next to the committed baseline, and fails on an unexpected status, a broken invariant, or a p95 regression
 # (more than 25 % and 5 ms slower than workflow/perf/baseline.json).
 #
-# Locally it first tops the database up to production-like volume (SEED_TALKS, default 1500 talks), because list
-# endpoints only show their cost with data.
+# Locally it first rebuilds the test data in production's shape (dbdrift.sh --sync), because list endpoints only
+# show their cost with realistic data. The baseline records the talk count; runs on data more than 5 % apart from it
+# aren't compared (re-baseline instead).
 #
 # Usage: workflow/bin/perf.sh [base-url]                 (default http://localhost:8080)
 #        workflow/bin/perf.sh --save-baseline [base-url] same, and make a green run the new baseline
-# Env:   DURATION (default 30s), VUS (default 60), SEED_TALKS
+# Env:   DURATION (default 30s), VUS (default 60)
 set -uo pipefail
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$root"
@@ -33,25 +34,9 @@ EOF
 }
 
 if $local; then
-    cleanup
-    docker compose exec -T postgres psql -U cfp -q -v want="${SEED_TALKS:-1500}" >/dev/null <<'EOF'
-SELECT GREATEST(:want - COUNT(*), 0) / 2 AS speakers FROM talk \gset
--- two talks per seeded speaker, five ratings per talk
-WITH s AS (
-    INSERT INTO speaker (name, email)
-    SELECT 'Seed ' || g, 'seed-' || g || '-' || md5(random()::text) || '@example.com' FROM generate_series(1, :speakers) g
-    RETURNING id
-), t AS (
-    INSERT INTO talk (title, format, duration, level, status, speaker_id, submitted_at)
-    SELECT 'Seed talk', 'PRESENTATION', 45, 'BEGINNER', 'SUBMITTED', s.id, (extract(epoch FROM now()) * 1000)::bigint
-    FROM s, generate_series(1, 2)
-    RETURNING id
-)
-INSERT INTO rating (talk_id, reviewer_id, score, rated_at)
-SELECT t.id, r, 1 + (t.id + r) % 5, '2026-11-06 12:00:00' FROM t, generate_series(1, 5) r;
-EOF
-    echo "local data: $(docker compose exec -T postgres psql -U cfp -tAc 'SELECT COUNT(*) FROM talk') talks," \
-        "$(docker compose exec -T postgres psql -U cfp -tAc 'SELECT COUNT(*) FROM rating') ratings"
+    # Production's shape (workflow/bin/dbdrift.sh --sync), so the load hits realistic data and runs are comparable.
+    workflow/bin/dbdrift.sh --sync >/dev/null || { echo "couldn't rebuild local data in production's shape" >&2; exit 1; }
+    echo "local data: $(docker compose exec -T postgres psql -U cfp -tAc 'SELECT COUNT(*) FROM talk') talks in production's shape"
 fi
 
 version=$(curl -fsS "$base/health" | jq -r .version) || { echo "no healthy $base/health" >&2; exit 1; }
@@ -64,13 +49,19 @@ k6rc=$?
 $local && cleanup
 [[ -s $summary ]] || { tail -30 .local/perf/k6.log; echo "k6 produced no summary" >&2; exit 1; }
 
-python3 - "$summary" "$baseline" "$version" <<'EOF'
+talks=$(curl -fsS "$base/talks" | jq length)
+python3 - "$summary" "$baseline" "$version" "$talks" <<'EOF'
 import json, os, sys
-summary, baseline_path, version = sys.argv[1:]
+summary, baseline_path, version, talks = sys.argv[1:]
+talks = int(talks)
 m = json.load(open(summary))["metrics"]
 prefix = "http_req_duration{name:"
 now = {k[len(prefix):-1]: v["values"]["p(95)"] for k, v in m.items() if k.startswith(prefix)}
 base = json.load(open(baseline_path)) if os.path.exists(baseline_path) else None
+if base and abs(base.get("talks", 0) - talks) > 0.05 * talks:
+    print(f"baseline {base['version']} was measured on {base.get('talks', '?')} talks, this run on {talks}: not comparable,"
+          " re-baseline with --save-baseline")
+    base = None
 old = base["p95_ms"] if base else {}
 reqs, checks = m["http_reqs"]["values"], m["checks"]["values"]
 print(f"{version}: {reqs['count']} requests, {reqs['rate']:.0f}/s, failed {m['http_req_failed']['values']['rate']:.2%}, "
@@ -85,7 +76,7 @@ for name in sorted(now):
     if b is not None and now[name] > b * 1.25 and now[name] > b + 5:
         flag, regressed = "  REGRESSED", True
     print(f"  {name:40} {now[name]:8.1f} {'' if b is None else f'{b:9.1f}'}{flag}")
-json.dump({"version": version, "requests_per_s": reqs["rate"], "p95_ms": now},
+json.dump({"version": version, "talks": talks, "requests_per_s": reqs["rate"], "p95_ms": now},
           open(".local/perf/latest-p95.json", "w"), indent=2)
 sys.exit(1 if regressed else 0)
 EOF

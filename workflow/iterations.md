@@ -173,3 +173,17 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   and the teammate's `race.sh` workshop checks (`84d31fd`);
   `check.sh` ALL GREEN on :8080 and on the linux/amd64 image; `compare.sh` EQUIVALENT to `9680a89` (31 requests).
 - **Pushed:** see below.
+
+## 6. Local test data didn't look like production's
+
+- **Problem:** locally 1880 talks, 86 % presentations, 97 % beginner, almost all SUBMITTED, no co-speakers, every
+  seeded talk with exactly 5 ratings. Production: 2714 talks, an even format and level mix, 142 accepted / 76
+  withdrawn / 61 rejected, 240 talks with co-speakers, up to 20 ratings on a talk, 70 accepted workshops taking
+  registrations. Tests and load runs exercised unrealistic data; `perf.sh` even reported a false regression because
+  the data had grown under its baseline (A/B on identical data: the current build is ~10 % faster than this morning's).
+- **Change:** `workflow/bin/dbdrift.sh` profiles production and local through the API and reports drift; `--sync`
+  rebuilds local data in production's shape in ~2 s; `--watch` runs it every 10 minutes. `perf.sh` uses
+  production-shaped data and records the talk count with its baseline, refusing to compare across different data.
+- **Evidence:** drift report before (10 drifted dimensions), `IN SHAPE` after `--sync`; `check.sh` 22/22 + races and
+  `compare.sh` equivalent on the new data; new baseline on 2809 talks: 947 req/s, all p95 under 360 ms.
+- **Pushed:** see git log.

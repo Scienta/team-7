@@ -1,15 +1,16 @@
 {
-  "version": "local-8b4cefa",
-  "requests_per_s": 1023.6555502075245,
+  "version": "1efd870",
+  "talks": 2809,
+  "requests_per_s": 947.3457922645221,
   "p95_ms": {
-    "POST /speakers": 137.62924999999996,
-    "PUT /talks/{id}/ratings/{reviewerId}": 134.2358,
-    "GET /speakers/{id}": 127.576,
-    "GET /talks": 161.6042,
-    "GET /speakers/{id}/talks": 136.0832499999999,
-    "POST /talks": 131.22025,
-    "GET /talks?sort=rating": 155.2142999999999,
-    "GET /talks?speakerId": 127.65699999999995,
-    "GET /talks/{id}": 127.56199999999997
+    "GET /talks?speakerId": 142.01215,
+    "POST /talks": 130.52764999999997,
+    "GET /speakers/{id}/talks": 164.05469999999997,
+    "PUT /talks/{id}/ratings/{reviewerId}": 133.85069999999993,
+    "GET /talks": 359.5954999999997,
+    "POST /speakers": 135.3060999999999,
+    "GET /speakers/{id}": 128.21919999999997,
+    "GET /talks/{id}": 133.3401,
+    "GET /talks?sort=rating": 320.6803
   }
 }
