@@ -335,6 +335,13 @@ public class ConferenceService {
 
     // ---------------------------------------------------------------- statistics
 
+    /**
+     * Every speaker's name by id, for the reports.
+     */
+    public Map<Long, String> speakerNames() {
+        return speakerDao.names();
+    }
+
     public Map<String, Object> statistics() {
         List<TalkDto> talks = listTalks(null, null);
         Map<String, Integer> byFormat = new LinkedHashMap<>();

@@ -85,3 +85,12 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
 - **Evidence:** JUnit 53 green; `check.sh` ALL GREEN locally; `compare.sh`: EQUIVALENT to `841f28e` on 31 requests,
   `/admin/stats` included.
 - **Pushed:** see below.
+
+## 8. The CSV export looked up the speaker once per talk
+
+- **Problem:** `/admin/talks.csv` took 5.4-6.0 s on the deployed service: it read each talk's speaker with its own
+  query (the same pattern as `/admin/stats`, which the previous entry fixed).
+- **Change:** `SpeakerDao.names()` reads every speaker's name in one query and the CSV takes names from that map
+  (still 404 if a talk's speaker is missing). 3 files.
+- **Evidence:** old and new jar side by side on 1533-1580 talks: CSV byte-identical; ~230 → ~25 ms locally.
+- **Deployed:** pending merge.
