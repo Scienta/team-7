@@ -61,17 +61,20 @@ class SchedulingSpecTest {
     // ---------------------------------------------------------------- R1: the venue
 
     @Test
-    @DisplayName("R1: all 15 cells exist and are empty with the right start and end")
+    @DisplayName("R1: all 15 cells exist: empty is 404, and a talk there shows the cell's start and end")
     void allCellsExistAndAreEmpty() throws Exception {
         for (String room : ROOMS) {
             for (int i = 0; i < SLOTS.length; i++) {
-                HttpResponse<String> res = send("GET", cell(room, SLOTS[i]), null);
-                assertEquals(200, res.statusCode(), room + SLOTS[i] + " " + res.body());
-                assertEquals(room, field(res.body(), "room"));
-                assertEquals(SLOTS[i], field(res.body(), "slot"));
-                assertEquals(TIMES[i][0], field(res.body(), "start"));
-                assertEquals(TIMES[i][1], field(res.body(), "end"));
-                assertEquals("null", field(res.body(), "talkId"), res.body());
+                // an empty cell has nothing to show (harness scheduling/check-2..5)
+                HttpResponse<String> empty = send("GET", cell(room, SLOTS[i]), null);
+                assertEquals(404, empty.statusCode(), room + SLOTS[i] + " " + empty.body());
+                long talk = acceptedTalk("PRESENTATION");
+                HttpResponse<String> put = send("PUT", cell(room, SLOTS[i]), "{\"talkId\":" + talk + "}");
+                assertEquals(200, put.statusCode(), put.body());
+                assertEntry(put.body(), room, SLOTS[i], TIMES[i][0], TIMES[i][1], String.valueOf(talk));
+                assertEntry(send("GET", cell(room, SLOTS[i]), null).body(), room, SLOTS[i], TIMES[i][0], TIMES[i][1],
+                        String.valueOf(talk));
+                assertEquals(204, send("DELETE", cell(room, SLOTS[i]), null).statusCode());
             }
         }
     }
@@ -112,8 +115,7 @@ class SchedulingSpecTest {
         assertEquals(200, send("PUT", cell("R1", "S1"), "{\"talkId\":" + talk + "}").statusCode());
         assertEquals(204, send("DELETE", cell("R1", "S1"), null).statusCode());
         HttpResponse<String> get = send("GET", cell("R1", "S1"), null);
-        assertEquals(200, get.statusCode());
-        assertEquals("null", field(get.body(), "talkId"), get.body());
+        assertEquals(404, get.statusCode(), get.body());
         HttpResponse<String> moved = send("PUT", cell("R3", "S2"), "{\"talkId\":" + talk + "}");
         assertEquals(200, moved.statusCode(), moved.body());
         assertEntry(moved.body(), "R3", "S2", "10:15", "11:15", String.valueOf(talk));
@@ -174,9 +176,10 @@ class SchedulingSpecTest {
     }
 
     @Test
-    @DisplayName("R3: an unknown talkId is 404")
+    @DisplayName("R3: an unknown talkId is 400")
     void unknownTalkIs404() throws Exception {
-        assertRejected(404, "R1", "S1", 987654321L);
+        // the room and slot exist; the body names a missing talk: 400 (harness scheduling/check-1)
+        assertRejected(400, "R1", "S1", 987654321L);
     }
 
     @Test
@@ -189,7 +192,7 @@ class SchedulingSpecTest {
         assertEquals(400, send("PUT", path, "{\"talkId\":1.5}").statusCode(), "decimal talkId");
         assertEquals(400, send("PUT", path, "[1]").statusCode(), "not an object");
         HttpResponse<String> get = send("GET", path, null);
-        assertEquals("null", field(get.body(), "talkId"), get.body());
+        assertEquals(404, get.statusCode(), get.body());
     }
 
     // ---------------------------------------------------------------- R4: fit
@@ -200,7 +203,7 @@ class SchedulingSpecTest {
         long talk = acceptedTalk("WORKSHOP");
         for (String slot : new String[] {"S1", "S2", "S3", "S5"}) {
             assertRejected(409, "R1", slot, talk);
-            assertEquals("null", field(send("GET", cell("R1", slot), null).body(), "talkId"));
+            assertEquals(404, send("GET", cell("R1", slot), null).statusCode());
         }
         HttpResponse<String> ok = send("PUT", cell("R1", "S4"), "{\"talkId\":" + talk + "}");
         assertEquals(200, ok.statusCode(), ok.body());
@@ -238,7 +241,7 @@ class SchedulingSpecTest {
         long talk = acceptedTalk("PRESENTATION");
         assertEquals(200, send("PUT", cell("R1", "S1"), "{\"talkId\":" + talk + "}").statusCode());
         assertRejected(409, "R2", "S2", talk);
-        assertEquals("null", field(send("GET", cell("R2", "S2"), null).body(), "talkId"));
+        assertEquals(404, send("GET", cell("R2", "S2"), null).statusCode());
         assertEquals(String.valueOf(talk), field(send("GET", cell("R1", "S1"), null).body(), "talkId"));
     }
 
@@ -261,7 +264,7 @@ class SchedulingSpecTest {
         long b = acceptedTalk("PRESENTATION", speaker);
         assertEquals(200, send("PUT", cell("R1", "S2"), "{\"talkId\":" + a + "}").statusCode());
         assertRejected(409, "R2", "S2", b);
-        assertEquals("null", field(send("GET", cell("R2", "S2"), null).body(), "talkId"));
+        assertEquals(404, send("GET", cell("R2", "S2"), null).statusCode());
     }
 
     @Test
@@ -380,7 +383,8 @@ class SchedulingSpecTest {
         assertEquals(1, ok);
         int filled = 0;
         for (String slot : SLOTS) {
-            if (String.valueOf(talk).equals(field(send("GET", cell("R1", slot), null).body(), "talkId"))) {
+            HttpResponse<String> got = send("GET", cell("R1", slot), null);
+            if (got.statusCode() == 200 && String.valueOf(talk).equals(field(got.body(), "talkId"))) {
                 filled++;
             }
         }
@@ -410,7 +414,7 @@ class SchedulingSpecTest {
         assertEquals(1, ok);
         int filled = 0;
         for (String room : ROOMS) {
-            if (!"null".equals(field(send("GET", cell(room, "S2"), null).body(), "talkId"))) {
+            if (send("GET", cell(room, "S2"), null).statusCode() == 200) {
                 filled++;
             }
         }

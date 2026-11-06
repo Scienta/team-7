@@ -98,7 +98,7 @@ HTTP 409
 
 PUT {{base_url}}/programme/R2/S1
 { "talkId": 999999999 }
-HTTP 404
+HTTP 400
 
 PUT {{base_url}}/programme/R2/S1
 {}

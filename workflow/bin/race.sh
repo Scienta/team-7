@@ -52,7 +52,7 @@ req() {
 }
 speaker() { post /speakers "{\"name\":\"Race $1\",\"email\":\"race-$1-$run-$RANDOM@example.com\"}" | id; }
 talk() { post /talks "{\"title\":\"Race\",\"format\":\"PRESENTATION\",\"level\":\"BEGINNER\",\"speakerId\":$1}" | id; }
-get() { curl -sS "$base$1" | python3 -c "import json,sys; t=json.load(sys.stdin); print($2)"; }
+get() { curl -sS "$base$1" | python3 -c "import json,sys; t=json.load(sys.stdin); print($2)" 2>/dev/null || echo none; }
 count() { grep -cE "$1" <<<"$2"; } # count lines matching
 no5xx() { expect "$1: no 5xx" 0 "$(count ' 5[0-9][0-9]$' "$2")"; }
 

@@ -52,7 +52,8 @@ public class ProgrammeService {
         long talkId = ((Number) id).longValue();
         Map<String, Object> talk = programme.talk(talkId);
         if (talk == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "talk not found");
+            // the room and slot exist; the body names a talk that doesn't (harness scheduling/check-1)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "talk " + talkId + " doesn't exist");
         }
         if (!"ACCEPTED".equals(talk.get("status"))) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "only accepted talks go on the programme, this one is " + talk.get("status"));
@@ -83,7 +84,12 @@ public class ProgrammeService {
 
     public Map<String, Object> get(String room, String slot) {
         requireCell(room, slot);
-        return entry(room, slot, programme.talkIn(room, slot));
+        Long talkId = programme.talkIn(room, slot);
+        if (talkId == null) {
+            // nothing scheduled there (harness scheduling/check-2..5)
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "nothing scheduled in " + room + " " + slot);
+        }
+        return entry(room, slot, talkId);
     }
 
     @Transactional

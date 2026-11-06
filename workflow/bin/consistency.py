@@ -75,6 +75,8 @@ def talk(fmt, status):
 # Expectations the harness has confirmed that override rule 1: the 404 is about the sub-resource, not the talk.
 # Removing someone who isn't a co-speaker is 404 (co-speakers/check-1 turned green with exactly that, c8929ce).
 EXPECT_404 = {"DELETE co-speaker (isn't)"}
+# A missing talk named in a body (not the path) is a bad request: the path's room and slot exist (scheduling/check-1).
+MISSING_EXPECT = {"PUT programme": 400}
 # Set-up a column needs on its fresh talk before the call.
 SETUP = {"DELETE co-speaker (is one)": lambda t, o, x: call("PUT", f"/talks/{t}/co-speakers/{x}")}
 
@@ -131,8 +133,9 @@ def main():
         method, path, body = make(MISSING, other, other)
         code, _ = call(method, path, body)
         row.append(code)
-        if code != 404:
-            violations.append(f"no such talk: {name} -> {code}, expected 404")
+        expected = MISSING_EXPECT.get(name, 404)
+        if code != expected:
+            violations.append(f"no such talk: {name} -> {code}, expected {expected}")
     rows.append(("no such talk", row))
 
     width = max(len(n) for n, _ in ENDPOINTS)

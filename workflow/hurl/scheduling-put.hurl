@@ -56,9 +56,7 @@ DELETE {{base_url}}/programme/R1/S1
 HTTP 204
 
 GET {{base_url}}/programme/R1/S1
-HTTP 200
-[Asserts]
-jsonpath "$.talkId" == null
+HTTP 404
 
 PUT {{base_url}}/programme/R2/S5
 { "talkId": {{t}} }

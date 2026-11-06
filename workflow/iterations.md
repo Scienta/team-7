@@ -289,3 +289,14 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   input we use exists in v7); every job in `deploy.yml` and `logs.yml` on `ubuntu-24.04`.
 - **Evidence:** `actionlint` clean; action runtimes read from each tag's `action.yml`.
 - **Deployed:** pending merge; the image job's new action versions first run on the next deploying push.
+
+## 25. Scheduling checks 1–5 failed: empty cell and unknown talk
+
+- **Problem:** after the claim, 5 of 6 scheduling checks were FAULTY. Checks 2–5 stopped at `GET` of an empty
+  cell (we said 200 `"talkId": null`); check 1 stopped at `PUT` with a `talkId` that doesn't exist (we said 404,
+  right after the harness accepted 404 for slot `S6` and 400 for `"talkId": true`).
+- **Change:** empty cell `GET` → 404; unknown `talkId` in the body → 400. `ProgrammeService`, decisions, spec
+  test, Hurl suites, matrix (`MISSING_EXPECT`), `race.sh` `get()` tolerates a 404 body.
+- **Evidence:** the 5 harness transcripts as replays (`workflow/hurl/harness/scheduling-check-*-t119.hurl`) pass;
+  `check.sh` ALL GREEN locally; `./mvnw verify` 111 green. Pushed with `[fast]` (losing points).
+- **Pushed:** see below.

@@ -20,7 +20,7 @@ Checked in this order; the first that applies wins, and a rejected request chang
 |---|---|
 | Unknown room or slot | `404` |
 | Body missing or not an object, `talkId` missing or not a whole number | `400` |
-| No talk with that id | `404` **(risk: could be 400/422)** |
+| No talk with that id | `400` (harness scheduling/check-1 rejected 404: the room and slot exist, the body is wrong) |
 | The talk isn't `ACCEPTED` right now (incl. `WITHDRAWN` after acceptance) | `409` |
 | A `WORKSHOP` in a slot other than `S4` | `409` |
 | The talk is already on the programme, anywhere, including this same room and slot | `409` **(risk: a repeat of the same placement could be an idempotent 200)** |
@@ -33,8 +33,8 @@ Checked in this order; the first that applies wins, and a rejected request chang
 
 ## GET /programme/{room}/{slot}
 
-- `200` with the `Entry`. An empty room and slot is `200` with `"talkId": null` **(risk: could be 404)**. The room
-  and slot exist, so by the lesson above it's not a 404.
+- `200` with the `Entry` when a talk is scheduled there. An empty room and slot is `404` (harness scheduling/check-2
+  to check-5 rejected 200 with `"talkId": null`).
 - Returns what was scheduled even if the talk changed afterwards (withdrawn, new co-speakers): the spec says the
   programme stays as it is.
 
