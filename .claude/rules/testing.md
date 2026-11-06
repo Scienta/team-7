@@ -8,8 +8,10 @@ commit, gate it, push it right away (no waiting for earlier deploys), verify the
 1. `git fetch` and build on top of `origin/main`.
 2. `workflow/bin/local.sh up`: builds the working tree with the root `Dockerfile` (the deployed JDK) and runs it on
    :8080 against the Compose Postgres. `local.sh logs` follows its log.
-3. `workflow/bin/check.sh`: published `examples/*.hurl` + our `workflow/hurl/*.hurl` + the parallel checks in
-   `workflow/bin/race.sh`. Must end with `ALL GREEN`. `check.sh <url> <file.hurl>` runs one suite.
+3. `workflow/bin/check.sh`: published `examples/*.hurl` + our `workflow/hurl/*.hurl` + the 36 parallel checks in
+   `workflow/bin/race.sh` (talk limit, ratings, one email = one speaker, conflicting committee decisions, withdraw
+   races, co-speaker limit/duplicates/add-remove storms, co-speaking vs the talk limit). Must end with `ALL GREEN`.
+   `check.sh <url> <file.hurl>` runs one suite.
 4. `workflow/bin/compare.sh`: runs `HEAD` on :8082 beside the working tree and diffs 31 reads and rejected writes.
    `EQUIVALENT` for refactors and perf work; for a fix, the only differences are the intended ones.
 5. Perf work: `workflow/bin/perf.sh` (k6, 60 users, 1500 talks) against `workflow/perf/baseline.json`.
@@ -22,8 +24,11 @@ JUnit runs in CI after each deploy (`tests` job in `deploy.yml`, not a gate). Ch
 
 - `gh run watch <id> --exit-status` in the background, then `check.sh https://fagsem-h2026-team-7.scienta.cloud`
   (or the suite you touched) and `workflow/bin/feedback.sh`.
-- `workflow/bin/watch.sh [seconds]` runs in the background all session and exits when anything on the harness
-  changes (a check, a feature released or claimed, the service down): run `feedback.sh`, tell the user, restart it.
+- `workflow/bin/watch.sh 10` runs in the background all session and exits when anything changes: a new commit on
+  `origin/main`, a check's status, a feature released or claimed, the service down. Then `feedback.sh`, tell the user,
+  restart it (`KNOWN=1` while a known failure is being worked on, so it only reports changes).
+- Priority: failing checks first, then new commits on `main` (gate them: `local.sh up`, `check.sh`, `compare.sh`
+  against the commit before them; then the deploy and the harness), then everything else.
 
 ## Reporting
 

@@ -22,7 +22,7 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   register). 2 files, +11/-6.
 - **Evidence:** 500 emoji: 400 → 201; `speakers-bio.hurl` green, all 17 Hurl files and the race checks green;
   equivalent to `d4cbc84` on 31 requests.
-- **Deployed:** see below.
+- **Deployed:** deploy and CI JUnit green; 500 emoji → 201 on the deployed service.
 
 ## 3. The local loop assumed JDK 11; the app now runs on JDK 25
 
@@ -61,3 +61,16 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   linux/amd64 image on :8081 (`/actuator/info`: java 25.0.5, springBoot 4.1.2, springFramework 7.0.10);
   `compare.sh origin/main`: 30 of 31 same, the one diff is Jackson's wording inside a malformed-JSON 400 message.
 - **Pushed:** see below.
+
+## 4. No race checks for acceptance, co-speakers or duplicate registrations
+
+- **Problem:** `race.sh` covered only the 3-talk limit and ratings. Acceptance and co-speakers (teammates' PRs #1-#2)
+  both claim concurrency safety (conditional `UPDATE`, row lock + unique key) that nothing of ours tried to break.
+- **Change:** 29 new parallel checks in `workflow/bin/race.sh`: 20 mixed-case registrations of one email; 10 accept +
+  10 reject, 10 reject + 10 withdraw, 10 waitlist + 10 accept, and withdraw by owner + others on one talk; 6 distinct
+  co-speakers at once, 10 identical adds, add/remove storms, remove + 2 adds on a full talk, and a speaker co-speaking
+  on 3 talks submitting 6 of their own at once. Every burst also asserts no 5xx. `watch.sh` now also watches
+  `origin/main` and polls every 10 s.
+- **Evidence:** 36/36 green, 6 runs locally on `6ff8b1d` and 4 runs against the deployed service. No race found: the
+  locking holds.
+- **Deployed:** tooling only.
