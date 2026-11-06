@@ -94,6 +94,19 @@ class SpeakersTest {
         assertEquals("[]", wildcard.body());
     }
 
+    @Test
+    void trailingSlashUrlsWorkLikeTheOnesWithout() throws Exception {
+        String email = "slash-" + UUID.randomUUID() + "@example.com";
+        HttpResponse<String> created = http.send(request("POST", "/speakers/", speaker("Slash", email)),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(201, created.statusCode(), created.body());
+        String id = created.body().replaceAll(".*\"id\":(\\d+).*", "$1");
+
+        HttpResponse<String> got = send("GET", "/speakers/" + id + "/");
+        assertEquals(200, got.statusCode(), got.body());
+        assertTrue(got.body().contains(email), got.body());
+    }
+
     private static String enc(String s) {
         return java.net.URLEncoder.encode(s, java.nio.charset.StandardCharsets.UTF_8);
     }

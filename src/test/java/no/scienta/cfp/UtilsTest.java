@@ -63,4 +63,15 @@ class UtilsTest {
             assertFalse(Utils.isValidEmail(s), String.valueOf(s));
         }
     }
+
+    @Test
+    void usShortIsTheLegacyReviewerFormatWithAnOrdinarySpace() {
+        assertEquals("11/4/26, 1:05 PM", Utils.usShort(utc(2026, 11, 4, 13, 5)));
+        assertEquals("11/4/26, 12:00 AM", Utils.usShort(utc(2026, 11, 4, 0, 0)));
+        assertEquals("1/9/27, 9:30 AM", Utils.usShort(utc(2027, 1, 9, 9, 30)));
+    }
+
+    private static Date utc(int y, int mo, int d, int h, int mi) {
+        return Date.from(java.time.ZonedDateTime.of(y, mo, d, h, mi, 0, 0, java.time.ZoneOffset.UTC).toInstant());
+    }
 }

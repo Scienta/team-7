@@ -51,7 +51,9 @@ public class Utils {
      * "11/4/26, 1:05 PM", what the reviewer UI shows.
      */
     public static String usShort(Date d) {
-        DateFormat f = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT, Locale.US);
+        // An explicit pattern: from JDK 20 the CLDR short format puts a narrow no-break space (U+202F) before AM/PM,
+        // and the legacy UI needs an ordinary one.
+        SimpleDateFormat f = new SimpleDateFormat("M/d/yy, h:mm a", Locale.US);
         f.setTimeZone(UTC);
         return f.format(d);
     }
