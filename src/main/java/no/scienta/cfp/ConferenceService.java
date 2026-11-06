@@ -26,6 +26,9 @@ public class ConferenceService {
 
     private static final Logger log = LoggerFactory.getLogger(ConferenceService.class);
 
+    // specs/talks.md: a speaker submits at most 3 talks (co-speaking doesn't count)
+    static final int MAX_TALKS = 3;
+
     private static final Map<String, Integer> DURATIONS = new HashMap<>();
 
     static {
@@ -106,7 +109,12 @@ public class ConferenceService {
         if (!email.equalsIgnoreCase((String) existing.get("email")) && speakerDao.emailTaken(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
         }
-        speakerDao.update(id, name, email, bio);
+        try {
+            speakerDao.update(id, name, email, bio);
+        } catch (DuplicateKeyException e) {
+            // another request took the email between the check above and this update
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
+        }
         return getSpeaker(id);
     }
 
@@ -134,24 +142,11 @@ public class ConferenceService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "speaker " + form.speakerId + " does not exist");
         }
 
-        int duration;
-        switch (form.format) {
-            case "LIGHTNING_10":
-                duration = 10;
-                break;
-            case "LIGHTNING_20":
-                duration = 20;
-                break;
-            case "WORKSHOP":
-                duration = 120;
-                break;
-            default:
-                duration = 45;
-        }
+        int duration = DURATIONS.get(form.format);  // validated above
 
         Long id = checkSubmissionLimit(form, duration);
         if (id == null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "a speaker can submit at most 3 talks");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "a speaker can submit at most " + MAX_TALKS + " talks");
         }
         Map<String, Object> speaker = speakerDao.findById(form.speakerId);
         notifications.talkSubmitted((String) speaker.get("email"), form.title);
@@ -159,10 +154,10 @@ public class ConferenceService {
     }
 
     /**
-     * Checks that the speaker is below the limit of 3 talks.
+     * Inserts the talk if the speaker is below the limit of {@link #MAX_TALKS} talks; null if not.
      */
     private Long checkSubmissionLimit(TalkForm form, int duration) {
-        return talkDao.insertIfBelow(3, form.title, form.format, duration, form.level, form.speakerId,
+        return talkDao.insertIfBelow(MAX_TALKS, form.title, form.format, duration, form.level, form.speakerId,
                 System.currentTimeMillis());
     }
 
@@ -334,6 +329,13 @@ public class ConferenceService {
     }
 
     // ---------------------------------------------------------------- statistics
+
+    /**
+     * Every speaker's name by id, for the reports.
+     */
+    public Map<Long, String> speakerNames() {
+        return speakerDao.names();
+    }
 
     public Map<String, Object> statistics() {
         List<TalkDto> talks = listTalks(null, null);

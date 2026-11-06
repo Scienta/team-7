@@ -21,7 +21,7 @@ Baseline 2026-11-06 at `8b4cefa`, 60 VUs, 1500 talks: ~1020 req/s, every endpoin
   `rate`: exists + upsert; `registerSpeaker`: emailTaken + insert (the unique index already decides). Cut round
   trips without weakening the 3-talk limit or the upsert (race.sh and load.js invariants must stay green).
   Done when: write p95 improves, compare equivalent.
-- [ ] **R3 observability: request logging.** One line per request: method, path with query, status, duration ms.
+- [x] **R3 observability: request logging.** One line per request: method, path with query, status, duration ms.
   No bodies, no emails. A servlet filter. Done when: lines show in `.local/app.log` for check.sh traffic and perf
   doesn't regress.
 - [ ] **R4 refactor: explicit date formats.** `submittedAt` (`yyyy-MM-dd'T'HH:mm:ss.SSS+00:00`), `submittedOn`
@@ -32,6 +32,9 @@ Baseline 2026-11-06 at `8b4cefa`, 60 VUs, 1500 talks: ~1020 req/s, every endpoin
   `switch` duplicating `DURATIONS` (with a silent 45 default), commented-out code, unused helpers, the stale API and
   run sections of the README. Keep `Utils.roundRating` behaviour for `/admin/stats` (or make it use
   `averageRating` only as a needs-human change). Done when: compare equivalent.
+  Partly done 2026-11-06: `Utils.MAX_TALKS` removed (the limit is `ConferenceService.MAX_TALKS = 3`), the duration
+  `switch` replaced by `DURATIONS`, the README's run/API sections rewritten, `Utils.today()` in UTC. Left:
+  commented-out code and unused helpers.
 - [ ] **R6 refactor: split `ConferenceService`** into speaker, talk, rating and report services; controllers and
   JSON unchanged. Done when: compare equivalent, all tests green.
 - [ ] **R7 refactor: typed responses.** Speaker and rating responses as classes instead of `Map<String,Object>`,
@@ -52,3 +55,5 @@ Baseline 2026-11-06 at `8b4cefa`, 60 VUs, 1500 talks: ~1020 req/s, every endpoin
 ## Log
 
 <!-- One line per iteration: date time, item, done/blocked, commit, the numbers. -->
+- 2026-11-06, R3, done: `RequestLoggingFilter` (logger `access`), e.g. `POST /speakers/ 201 12ms`; check.sh ALL GREEN.
+- 2026-11-06, R5, partly: dead `MAX_TALKS`, duration `switch`, stale README sections; check.sh ALL GREEN, CSV identical.

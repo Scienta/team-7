@@ -107,6 +107,32 @@ class SpeakersTest {
         assertTrue(got.body().contains(email), got.body());
     }
 
+    @Test
+    void concurrentUpdatesToOneEmailHaveOneWinnerAndNo500() throws Exception {
+        String email = "taken-" + UUID.randomUUID() + "@example.com";
+        List<String> ids = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            HttpResponse<String> created = register("Racer " + i, "racer-" + UUID.randomUUID() + "@example.com");
+            assertEquals(201, created.statusCode(), created.body());
+            ids.add(created.body().replaceAll("(?s).*\"id\":(\\d+).*", "$1"));
+        }
+        List<CompletableFuture<HttpResponse<String>>> sent = new ArrayList<>();
+        for (int i = 0; i < ids.size(); i++) {
+            String variant = i % 2 == 0 ? email : email.toUpperCase();
+            sent.add(http.sendAsync(request("PUT", "/speakers/" + ids.get(i), speaker("Racer " + i, variant)),
+                    HttpResponse.BodyHandlers.ofString()));
+        }
+        int updated = 0;
+        for (CompletableFuture<HttpResponse<String>> f : sent) {
+            HttpResponse<String> res = f.join();
+            assertTrue(res.statusCode() == 200 || res.statusCode() == 409, res.statusCode() + " " + res.body());
+            if (res.statusCode() == 200) {
+                updated++;
+            }
+        }
+        assertEquals(1, updated);
+    }
+
     private static String enc(String s) {
         return java.net.URLEncoder.encode(s, java.nio.charset.StandardCharsets.UTF_8);
     }

@@ -62,7 +62,7 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   `compare.sh origin/main`: 30 of 31 same, the one diff is Jackson's wording inside a malformed-JSON 400 message.
 - **Pushed:** see below.
 
-## 4. No race checks for acceptance, co-speakers or duplicate registrations
+## 6. No race checks for acceptance, co-speakers or duplicate registrations
 
 - **Problem:** `race.sh` covered only the 3-talk limit and ratings. Acceptance and co-speakers (teammates' PRs #1-#2)
   both claim concurrency safety (conditional `UPDATE`, row lock + unique key) that nothing of ours tried to break.
@@ -85,3 +85,65 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
 - **Evidence:** JUnit 53 green; `check.sh` ALL GREEN locally; `compare.sh`: EQUIVALENT to `841f28e` on 31 requests,
   `/admin/stats` included.
 - **Pushed:** see below.
+
+## 8. The CSV export looked up the speaker once per talk
+
+- **Problem:** `/admin/talks.csv` took 5.4-6.0 s on the deployed service: it read each talk's speaker with its own
+  query (the same pattern as `/admin/stats`, which the previous entry fixed).
+- **Change:** `SpeakerDao.names()` reads every speaker's name in one query and the CSV takes names from that map
+  (still 404 if a talk's speaker is missing). 3 files.
+- **Evidence:** old and new jar side by side on 1533-1580 talks: CSV byte-identical; ~230 → ~25 ms locally.
+- **Deployed:** pending merge.
+
+## 9. No request logging (backlog R3)
+
+- **Problem:** the app logged no requests, so a FAULTY check or a timeout (speakers/check-4 at tick 36) left nothing
+  in the logs to see what was sent, what we answered or how long it took.
+- **Change:** `RequestLoggingFilter`, first in the chain: `<method> <path?query> <status> <ms>` on logger `access`,
+  path as sent (before the trailing slash is stripped), no bodies; an escaping exception logs as 500.
+  `WebConfig` registers it before the trailing-slash filter. 2 files + `RequestLoggingFilterTest`.
+- **Evidence:** live lines for 201/200/404/400 incl. `POST /speakers/ 201`; unit test for the 500 path;
+  check.sh ALL GREEN.
+- **Deployed:** pending merge. Read with `.github/fagdag/logs.sh | grep ' access '`.
+
+## 10. Two speakers updated to the same email at once: a 500
+
+- **Problem:** `PUT /speakers/{id}` checks the email is free, then updates; under concurrent updates to one email the
+  loser hit the unique index and got `500` (with the SQL in the message) instead of `409` like registration.
+- **Change:** `updateSpeaker` turns the `DuplicateKeyException` into `409`. 1 file + a race test in `SpeakersTest`.
+- **Evidence:** `concurrentUpdatesToOneEmailHaveOneWinnerAndNo500` (10 parallel PUTs, one email): without the fix
+  3/3 runs failed with a 500, with it 3/3 green.
+- **Deployed:** pending merge.
+
+## 11. Dead and misleading code (backlog R5, part)
+
+- **Problem:** `Utils.MAX_TALKS = 5` (unused; the limit is 3, hard-coded twice), a duration `switch` duplicating
+  `DURATIONS` with a silent 45-minute default, `Utils.today()` in the JVM's time zone, and a README describing Java 8,
+  port 8081, votes and Jenkins.
+- **Change:** one `MAX_TALKS = 3` in `ConferenceService`, durations from `DURATIONS`, `today()` in UTC (the platform
+  runs in UTC, so no visible change there), README run/API/test/deploy sections rewritten.
+- **Evidence:** JUnit 46 green; check.sh ALL GREEN; `/admin/talks.csv` byte-identical to `c8929ce` on 1533 talks.
+- **Deployed:** pending merge.
+
+## 12. The test suite spent most of its time waiting for timeouts
+
+- **Problem:** `./mvnw verify` took 40 s locally (59 s in CI, where it gates every deploy); `HealthTest` was 26 s of
+  it, mostly three sequential health checks against a paused database, each waiting out the 5 s timeout.
+- **Change:** `HealthTest` sends five probes at the same time (5 s instead of 15 s; they now really overlap, which is
+  the pile-up it guards against); surefire runs test classes in two JVMs (`forkCount=2`), so `HealthTest` runs
+  beside the rest.
+- **Evidence:** 40 s → 24.5-25.2 s over 3 runs, all 55 tests. With the single-flight probe broken (a thread per
+  request), the new `HealthTest` fails with "5 health-check threads".
+- **Deployed:** CI-only change; pending merge.
+
+## 13. The deploy waited for the tests before it even started building the image
+
+- **Problem:** `deploy` ran after `quality` (the tests, ~1 min) and then built the Docker image from scratch on a
+  fresh runner: Maven image pull, every dependency downloaded, everything compiled again, all on the critical path.
+- **Change:** a new `image` job builds and pushes `app:<sha>` in parallel with `quality`, with Buildx and the GitHub
+  Actions layer cache (the dependency layer is reused until `pom.xml` changes). `deploy` needs both, then points
+  `app:latest` at `app:<sha>` (pull/tag/push, as `rollout.sh` does for a rollback) and rolls out. `:latest` still
+  never holds an untested image.
+- **Evidence:** `actionlint` clean; job graph checked. Not run yet: forks get no Scaleway secrets and this sandbox
+  can't reach the registry. **Watch the first run on main**; `git revert` restores the old single build.
+- **Deployed:** pending merge.
