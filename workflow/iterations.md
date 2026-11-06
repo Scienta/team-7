@@ -354,3 +354,17 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   invitations at once → exactly 2, presents 3; after a rejection 5 at once → 1; `check.sh` ALL GREEN;
   `compare.sh` EQUIVALENT to `b5ed44a`. Normal push (co-speakers check 3 pending, nothing failing).
 - **Pushed:** see below.
+
+## 30. Submission cap: count through indexes
+
+- **Problem:** the cap count from iteration 29 (`TalkDao.PRESENTING`) used `speaker_id = ? OR EXISTS (… co-speaker …)`,
+  which no index serves: every `POST /talks` and co-speaker add scanned all talks under the speaker's row lock. On
+  production-shaped data (10 103 talks, 2 185 co-speakers) `EXPLAIN ANALYZE`: 1.6 ms. Suspected for the timeouts
+  at tick 194, but that was ruled out (too fast to drain the pool; the checks recovered without a deploy). The
+  cost grows with every talk the harness adds, so fixed anyway.
+- **Change:** `TalkDao.PRESENTING` adds up two index lookups (own talks via `ix_talk_speaker`; co-speaking via the new
+  `ix_talk_co_speaker_speaker`), equivalent because a main speaker is never a co-speaker of their own talk.
+  `schema.sql`: the index.
+- **Evidence:** same data, new count 0.13 ms (12x). `verify` green. `check.sh`, `compare.sh`, image rehearsal,
+  `perf.sh`: see below.
+- **Pushed:** pending.

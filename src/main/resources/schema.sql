@@ -86,3 +86,6 @@ INSERT INTO programme (room, slot) VALUES
     ('R2', 'S1'), ('R2', 'S2'), ('R2', 'S3'), ('R2', 'S4'), ('R2', 'S5'),
     ('R3', 'S1'), ('R3', 'S2'), ('R3', 'S3'), ('R3', 'S4'), ('R3', 'S5')
     ON CONFLICT DO NOTHING;
+
+-- 2026-11 submission cap: counting a speaker's co-speaking looks talks up by co-speaker.
+CREATE INDEX IF NOT EXISTS ix_talk_co_speaker_speaker ON talk_co_speaker (speaker_id);

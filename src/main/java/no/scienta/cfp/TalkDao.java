@@ -162,10 +162,14 @@ public class TalkDao {
 
     /**
      * How many talks a speaker presents that still count towards the limit (specs/submission-cap-cr.md): as main
-     * speaker or co-speaker, not rejected or withdrawn. Takes the speaker id twice.
+     * speaker or co-speaker, not rejected or withdrawn. Takes the speaker id twice. Two index lookups added up (a
+     * main speaker is never a co-speaker of their own talk); an OR across both scanned every talk while holding the
+     * speaker's lock.
      */
-    private static final String PRESENTING = "SELECT COUNT(*) FROM talk p WHERE p.status NOT IN ('REJECTED', 'WITHDRAWN') "
-            + "AND (p.speaker_id = ? OR EXISTS (SELECT 1 FROM talk_co_speaker c WHERE c.talk_id = p.id AND c.speaker_id = ?))";
+    private static final String PRESENTING = "SELECT "
+            + "(SELECT COUNT(*) FROM talk WHERE speaker_id = ? AND status NOT IN ('REJECTED', 'WITHDRAWN')) + "
+            + "(SELECT COUNT(*) FROM talk_co_speaker c JOIN talk t ON t.id = c.talk_id "
+            + "  WHERE c.speaker_id = ? AND t.status NOT IN ('REJECTED', 'WITHDRAWN'))";
 
     public int countPresenting(long speakerId) {
         return jdbc.queryForObject(PRESENTING, Integer.class, speakerId, speakerId);
