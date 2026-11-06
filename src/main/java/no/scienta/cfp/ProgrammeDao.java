@@ -63,6 +63,27 @@ public class ProgrammeDao {
         return n != null && n > 0;
     }
 
+    /** A scheduled talk for the export, with its title, format and speakers' names as they are now. */
+    public record ExportRow(String slot, String room, long talkId, String title, String format, List<String> speakers) {
+    }
+
+    /**
+     * Every room and slot that has a talk, by slot (S1..S5, which is also start time) and then room (R1..R3). Speakers
+     * by name: the main speaker first, then the co-speakers in the order they were added. One statement, so the rows
+     * are one snapshot even while the programme or the talks change.
+     */
+    public List<ExportRow> export() {
+        return jdbc.query("SELECT p.slot, p.room, t.id, t.title, t.format,"
+                        + " ARRAY(SELECT s.name FROM speaker s WHERE s.id = t.speaker_id)"
+                        + "   || ARRAY(SELECT s.name FROM talk_co_speaker c JOIN speaker s ON s.id = c.speaker_id"
+                        + "            WHERE c.talk_id = t.id ORDER BY c.seq) AS speakers"
+                        + " FROM programme p JOIN talk t ON t.id = p.talk_id"
+                        + " ORDER BY p.slot, p.room",
+                (rs, n) -> new ExportRow(rs.getString("slot"), rs.getString("room"), rs.getLong("id"),
+                        rs.getString("title"), rs.getString("format"),
+                        List.of((String[]) rs.getArray("speakers").getArray())));
+    }
+
     public void put(String room, String slot, long talkId) {
         jdbc.update("UPDATE programme SET talk_id = ? WHERE room = ? AND slot = ?", talkId, room, slot);
     }

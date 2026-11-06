@@ -310,3 +310,17 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   normal or fast, and never when nothing deployed.
 - **Evidence:** `actionlint` clean; the request log after `fa7afff` (no warm-up burst).
 - **Deployed:** CI only, `[no deploy]`; the next deploy is its first run.
+
+## 27. Programme export (drip feature `programme-export`, released at tick 133)
+
+- **Problem:** the feature request asks for the whole programme as JSON (`GET /programme`) and CSV
+  (`GET /programme.csv`), with a picky CSV contract (exact header, RFC 4180 quoting only when needed, Unix line
+  endings, `text/csv` even for `Accept: application/json`).
+- **Change:** decisions first (`workflow/decisions/programme-export.md`), then one SQL statement for the rows
+  (`ProgrammeDao.export`: programme joined to talks, speakers' names main-first then by `seq`), JSON and CSV in
+  `ProgrammeService`, the CSV's content type set rather than negotiated. Warm-up reads both exports; Hurl suite
+  `programme-export-csv.hurl` checks the CSV contract on any programme.
+- **Evidence:** `ProgrammeExportSpecTest`, 33 tests written by the spec-test-writer agent from the spec and the
+  decisions only (it never read `src/main`): all green on the first run. Full suite 144 green (1 skipped, old);
+  `check.sh` ALL GREEN (45 Hurl files + race checks) on a fresh database.
+- **Deployed:** pending merge. A person claims, after the deploy and `check.sh` against the live service.

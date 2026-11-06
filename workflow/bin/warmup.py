@@ -5,7 +5,8 @@ A new JVM hasn't compiled its hot paths yet, and on the platform's small CPU the
 after a deploy took up to 5 s per request (ticks 100 and 103 timed out). This sends rounds of parallel requests
 along the same paths, but only requests that can't change data:
 
-  - reads: health, info, talk lists and rankings, single talks, speakers, workshop registrations;
+  - reads: health, info, talk lists and rankings, single talks, speakers, workshop registrations, the programme
+    (a cell, and both exports);
   - writes the service rejects before writing anything: a speaker with an invalid email (400), a talk without a
     speakerId (400, after the title/format/level checks), an unknown decision status (400), a withdrawal without a
     speakerId (400), a score of 9 (400), a workshop registration without a name (400), and removing a talk's own main
@@ -49,8 +50,10 @@ def call(base, method, path, body=None, timeout=15):
 
 def requests_for(talks):
     """One round: every safe request, once per sampled talk (with its main speaker)."""
-    # No full talk lists here: they're the heaviest request and grow with the data (see the docstring).
-    out = [("GET", "/health", None), ("GET", "/actuator/info", None)]
+    # No full talk lists here: they're the heaviest request and grow with the data (see the docstring). The programme
+    # views are light: at most 15 rows (3 rooms x 5 slots), one query.
+    out = [("GET", "/health", None), ("GET", "/actuator/info", None),
+           ("GET", "/programme", None), ("GET", "/programme.csv", None), ("GET", "/programme/R1/S1", None)]
     for talk_id, speaker_id in talks:
         out += [
             ("GET", f"/talks/{talk_id}", None),

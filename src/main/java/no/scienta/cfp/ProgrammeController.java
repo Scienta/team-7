@@ -1,8 +1,12 @@
 package no.scienta.cfp;
 
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,6 +22,23 @@ public class ProgrammeController {
 
     public ProgrammeController(ProgrammeService service) {
         this.service = service;
+    }
+
+    /** The whole programme as JSON, for the website. */
+    @GetMapping("/programme")
+    public List<Map<String, Object>> export() {
+        return service.export();
+    }
+
+    /**
+     * The whole programme as CSV, for the print shop. The content type is set here, not negotiated, so it's text/csv
+     * whatever the request's Accept header says (no 406 for Accept: application/json).
+     */
+    @GetMapping("/programme.csv")
+    public ResponseEntity<byte[]> exportCsv() {
+        return ResponseEntity.ok()
+                .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
+                .body(service.exportCsv().getBytes(StandardCharsets.UTF_8));
     }
 
     @PutMapping("/programme/{room}/{slot}")
