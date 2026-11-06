@@ -300,3 +300,13 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
 - **Evidence:** the 5 harness transcripts as replays (`workflow/hurl/harness/scheduling-check-*-t119.hurl`) pass;
   `check.sh` ALL GREEN locally; `./mvnw verify` 111 green. Pushed with `[fast]` (losing points).
 - **Pushed:** see below.
+
+## 26. The warm-up never ran after a fast-lane deploy
+
+- **Problem:** `warmup` had no `if:`, so GitHub's default applied, which also requires `deploy`'s own needs to have
+  succeeded; in the fast lane `quality` is skipped, so `warmup` was skipped too. Seen in production: `fa7afff`
+  ([fast]) went live at 13:32:28 with no warm-up traffic after it.
+- **Change:** `warmup` runs `if: !cancelled() && needs.deploy.result == 'success'`: after every deploy that went out,
+  normal or fast, and never when nothing deployed.
+- **Evidence:** `actionlint` clean; the request log after `fa7afff` (no warm-up burst).
+- **Deployed:** CI only, `[no deploy]`; the next deploy is its first run.

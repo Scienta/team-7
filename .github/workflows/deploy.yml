@@ -161,6 +161,9 @@ jobs:
   # deploy, as a job of its own that may fail: it never fails or holds up the deploy.
   warmup:
     needs: deploy
+    # Explicitly after a successful deploy: the default (success()) also looks at deploy's own needs, and in the
+    # fast lane quality is skipped, which silently skipped the warm-up exactly when a cold start hurts most.
+    if: ${{ !cancelled() && needs.deploy.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     continue-on-error: true
