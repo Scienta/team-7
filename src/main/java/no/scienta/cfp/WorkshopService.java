@@ -29,7 +29,10 @@ public class WorkshopService {
 
     @Transactional
     public Map<String, Object> register(long workshopId, Map<String, Object> body) {
-        requireWorkshop(workshopId);
+        Map<String, Object> talk = registrations.talk(workshopId);
+        if (talk == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "workshop not found");
+        }
         Object name = body == null ? null : body.get("name");
         Object email = body == null ? null : body.get("email");
         if (!(name instanceof String) || ((String) name).trim().isEmpty()) {
@@ -39,6 +42,10 @@ public class WorkshopService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "a valid email is required");
         }
 
+        // A talk that exists but isn't a workshop takes no registrations, like a workshop that isn't accepted.
+        if (!"WORKSHOP".equals(talk.get("format"))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "only workshops take registrations");
+        }
         String status = registrations.lockStatus(workshopId);
         if (!"ACCEPTED".equals(status)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "a " + status + " workshop takes no registrations");

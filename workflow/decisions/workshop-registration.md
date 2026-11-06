@@ -5,8 +5,10 @@ These are ours.
 
 ## Which talks are workshops
 
-- A "workshop" is a talk with format `WORKSHOP`. Any other id, an existing non-workshop talk or a talk that
-  doesn't exist, is `404` for both `POST` and `GET /workshops/{id}/registrations`.
+- A "workshop" is a talk with format `WORKSHOP`. A talk that doesn't exist is `404` for both `POST` and
+  `GET /workshops/{id}/registrations`. An existing talk that isn't a workshop is `409` on `POST` (it takes no
+  registrations, like a workshop that isn't accepted) and `404` on `GET`. Changed from `404` on `POST` after the
+  harness's workshop-registration/check-2 failed on exactly that request (tick 80).
 
 ## POST /workshops/{id}/registrations
 
@@ -14,8 +16,9 @@ Checked in this order; the first that applies wins, and a rejected request chang
 
 | Case | Status |
 |---|---|
-| No talk with that id, or the talk isn't a `WORKSHOP` | `404` |
+| No talk with that id | `404` |
 | Body missing or not a JSON object; `name` missing, not a string or blank; `email` missing, not a string, or not an email (same rule as speaker registration: `local@domain.tld`) | `400` |
+| The talk isn't a `WORKSHOP` | `409` |
 | The workshop isn't `ACCEPTED` right now (`SUBMITTED`, `WAITLISTED`, `REJECTED`, or `WITHDRAWN`, also after it was accepted) | `409` |
 | That email (case-insensitive) is already registered for this workshop | `409` |
 | The workshop already has 20 registrations | `409` |

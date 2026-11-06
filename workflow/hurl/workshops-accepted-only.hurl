@@ -1,5 +1,5 @@
-# Workshop registration: only ACCEPTED workshops take registrations (409 otherwise); a talk that isn't a
-# workshop, or doesn't exist, is 404.
+# Workshop registration: only ACCEPTED workshops take registrations (409 otherwise, also for a talk that isn't a
+# workshop); a talk that doesn't exist is 404, and GET on a talk that isn't a workshop is 404.
 
 POST {{base_url}}/speakers
 { "name": "Submitted", "email": "submitted-host-{{newUuid}}@example.com" }
@@ -83,7 +83,7 @@ HTTP 200
 
 POST {{base_url}}/workshops/{{talk}}/registrations
 { "name": "A", "email": "a-{{newUuid}}@example.com" }
-HTTP 404
+HTTP 409
 
 GET {{base_url}}/workshops/{{talk}}/registrations
 HTTP 404

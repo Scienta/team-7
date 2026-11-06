@@ -192,7 +192,7 @@ class WorkshopRegistrationSpecTest {
     }
 
     @Test
-    @DisplayName("R2: a talk that is not a workshop gets 404 on POST and GET")
+    @DisplayName("R2: a talk that is not a workshop takes no registrations (409) and has no list (404)")
     void r2NonWorkshopTalk() throws Exception {
         String speaker = newSpeaker();
         HttpResponse<String> talk = http.send(request("POST", "/talks",
@@ -200,7 +200,7 @@ class WorkshopRegistrationSpecTest {
                 HttpResponse.BodyHandlers.ofString());
         assertEquals(201, talk.statusCode(), talk.body());
         String id = idOf(talk.body());
-        assertEquals(404, register(id, "Ada", uniqueEmail()).statusCode());
+        assertEquals(409, register(id, "Ada", uniqueEmail()).statusCode());
         assertEquals(404, get(id).statusCode());
     }
 
@@ -212,7 +212,7 @@ class WorkshopRegistrationSpecTest {
     }
 
     @Test
-    @DisplayName("R2: an unknown or non-workshop id is 404 even when the body is invalid")
+    @DisplayName("R2: an unknown id is 404 even when the body is invalid")
     void r2NotFoundBeforeValidation() throws Exception {
         assertEquals(404, post("999999", "{}").statusCode());
     }
