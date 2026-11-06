@@ -78,8 +78,12 @@ public class Utils {
         return s;
     }
 
+    // local@domain.tld: one @, no whitespace, a non-empty local part, and a domain of non-empty dot-separated labels
+    private static final java.util.regex.Pattern EMAIL =
+            java.util.regex.Pattern.compile("[^\\s@]+@[^\\s@.]+(\\.[^\\s@.]+)+");
+
     public static boolean isValidEmail(String email) {
-        return email != null && email.contains("@") && email.indexOf('@') < email.lastIndexOf('.');
+        return email != null && EMAIL.matcher(email).matches();
     }
 
     public static boolean isEmpty(String s) {

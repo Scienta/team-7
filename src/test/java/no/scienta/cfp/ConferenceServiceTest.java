@@ -71,6 +71,15 @@ class ConferenceServiceTest {
         assertEquals(HttpStatus.CONFLICT, e.getStatus());
     }
 
+    @Test
+    void speakerWithInvalidEmailIsRejected() {
+        SpeakerForm form = new SpeakerForm();
+        form.setName("Ada");
+        form.setEmail("not-an-email");
+        ResponseStatusException e = assertThrows(ResponseStatusException.class, () -> service.registerSpeaker(form));
+        assertEquals(HttpStatus.BAD_REQUEST, e.getStatus());
+    }
+
     private TalkForm form() {
         TalkForm form = new TalkForm();
         form.title = "Legacy is a feeling";

@@ -72,6 +72,32 @@ class SpeakersTest {
         assertTrue(found.body().contains("\"name\":\"Ada " + name + "\""), found.body());
     }
 
+    @Test
+    void anInvalidEmailIsRejected() throws Exception {
+        assertEquals(400, register("Grace Hopper", "not-an-email").statusCode());
+        assertEquals(400, register("Grace Hopper", "grace@example").statusCode());
+    }
+
+    @Test
+    void searchTreatsItsTextLiterally() throws Exception {
+        String name = "Hopper" + UUID.randomUUID().toString().substring(0, 8);
+        assertEquals(201, register("Grace " + name, "grace-" + UUID.randomUUID() + "@example.com").statusCode());
+
+        // SQL in the search text is matched as text, not run
+        HttpResponse<String> injected = send("GET", "/speakers/search?q=" + enc("x' OR '1'='1"));
+        assertEquals(200, injected.statusCode(), injected.body());
+        assertEquals("[]", injected.body());
+
+        // LIKE wildcards are matched literally too
+        HttpResponse<String> wildcard = send("GET", "/speakers/search?q=" + enc("%"));
+        assertEquals(200, wildcard.statusCode(), wildcard.body());
+        assertEquals("[]", wildcard.body());
+    }
+
+    private static String enc(String s) {
+        return java.net.URLEncoder.encode(s, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
     private HttpResponse<String> register(String name, String email) throws Exception {
         return http.send(request("POST", "/speakers", speaker(name, email)), HttpResponse.BodyHandlers.ofString());
     }

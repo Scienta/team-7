@@ -55,6 +55,9 @@ public class ConferenceService {
 
     @Transactional
     public Map<String, Object> registerSpeaker(SpeakerForm form) {
+        if (!Utils.isValidEmail(form.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid email");
+        }
         if (speakerDao.emailTaken(form.getEmail())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
         }

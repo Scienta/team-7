@@ -48,4 +48,19 @@ class UtilsTest {
         f.setTimeZone(TimeZone.getTimeZone("UTC"));
         assertEquals(f.format(new Date()), Utils.now());
     }
+
+    @Test
+    void acceptsRealEmails() {
+        assertTrue(Utils.isValidEmail("ada@example.com"));
+        assertTrue(Utils.isValidEmail("ADA@Example.com"));
+        assertTrue(Utils.isValidEmail("ada.lovelace+cfp@mail.example.co.uk"));
+    }
+
+    @Test
+    void rejectsWhatIsNotAnEmail() {
+        for (String s : new String[] {null, "", "ada", "ada@", "@example.com", "ada@example", "ada@.com",
+                "ada@example.", "ada@example..com", "ada lovelace@example.com", "ada@@example.com", " ada@example.com"}) {
+            assertFalse(Utils.isValidEmail(s), String.valueOf(s));
+        }
+    }
 }
