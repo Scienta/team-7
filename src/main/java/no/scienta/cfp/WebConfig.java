@@ -8,7 +8,8 @@ import org.springframework.web.filter.UrlHandlerFilter;
 
 /**
  * The legacy web client puts a slash at the end of some URLs (/speakers/, /speakers/{id}/). Spring 6 no longer
- * matches those by default, so this strips the trailing slash before the request reaches the controllers.
+ * matches those by default, so this strips the trailing slash before the request reaches the controllers. Every
+ * request is also logged (RequestLoggingFilter).
  */
 @Configuration
 public class WebConfig {
@@ -17,6 +18,14 @@ public class WebConfig {
     public FilterRegistrationBean<UrlHandlerFilter> trailingSlashFilter() {
         FilterRegistrationBean<UrlHandlerFilter> bean = new FilterRegistrationBean<>(
                 UrlHandlerFilter.trailingSlashHandler("/**").wrapRequest().build());
+        bean.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
+        return bean;
+    }
+
+    // First, so it times the whole request and logs the path as the client sent it, trailing slash included.
+    @Bean
+    public FilterRegistrationBean<RequestLoggingFilter> requestLoggingFilter() {
+        FilterRegistrationBean<RequestLoggingFilter> bean = new FilterRegistrationBean<>(new RequestLoggingFilter());
         bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
         return bean;
     }

@@ -21,7 +21,7 @@ Baseline 2026-11-06 at `8b4cefa`, 60 VUs, 1500 talks: ~1020 req/s, every endpoin
   `rate`: exists + upsert; `registerSpeaker`: emailTaken + insert (the unique index already decides). Cut round
   trips without weakening the 3-talk limit or the upsert (race.sh and load.js invariants must stay green).
   Done when: write p95 improves, compare equivalent.
-- [ ] **R3 observability: request logging.** One line per request: method, path with query, status, duration ms.
+- [x] **R3 observability: request logging.** One line per request: method, path with query, status, duration ms.
   No bodies, no emails. A servlet filter. Done when: lines show in `.local/app.log` for check.sh traffic and perf
   doesn't regress.
 - [ ] **R4 refactor: explicit date formats.** `submittedAt` (`yyyy-MM-dd'T'HH:mm:ss.SSS+00:00`), `submittedOn`
@@ -52,3 +52,4 @@ Baseline 2026-11-06 at `8b4cefa`, 60 VUs, 1500 talks: ~1020 req/s, every endpoin
 ## Log
 
 <!-- One line per iteration: date time, item, done/blocked, commit, the numbers. -->
+- 2026-11-06, R3, done: `RequestLoggingFilter` (logger `access`), e.g. `POST /speakers/ 201 12ms`; check.sh ALL GREEN.

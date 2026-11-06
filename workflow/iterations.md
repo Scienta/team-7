@@ -94,3 +94,14 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   (still 404 if a talk's speaker is missing). 3 files.
 - **Evidence:** old and new jar side by side on 1533-1580 talks: CSV byte-identical; ~230 → ~25 ms locally.
 - **Deployed:** pending merge.
+
+## 6. No request logging (backlog R3)
+
+- **Problem:** the app logged no requests, so a FAULTY check or a timeout (speakers/check-4 at tick 36) left nothing
+  in the logs to see what was sent, what we answered or how long it took.
+- **Change:** `RequestLoggingFilter`, first in the chain: `<method> <path?query> <status> <ms>` on logger `access`,
+  path as sent (before the trailing slash is stripped), no bodies; an escaping exception logs as 500.
+  `WebConfig` registers it before the trailing-slash filter. 2 files + `RequestLoggingFilterTest`.
+- **Evidence:** live lines for 201/200/404/400 incl. `POST /speakers/ 201`; unit test for the 500 path;
+  check.sh ALL GREEN.
+- **Deployed:** pending merge. Read with `.github/fagdag/logs.sh | grep ' access '`.
