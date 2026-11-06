@@ -33,3 +33,16 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   skill now say: small slices, push right after a green gate, report Problem / Change / Evidence / Pushed.
 - **Evidence:** `local.sh up` + `compare.sh` against `0f08036`: equivalent, 7.5 s with warm images; `check.sh` below.
 - **Deployed:** tooling only, no service change.
+
+## 4. Co-speakers checks 1 and 2 failed right after the claim
+
+- **Problem:** co-speakers was claimed at tick 47; at tick 48 `co-speakers/check-1` failed on a second
+  `DELETE /talks/{id}/co-speakers/{speakerId}` of the same co-speaker (we answered `200`, talk unchanged) and
+  `check-2` on `PUT` of the talk's main speaker (we answered `409`). The harness shows the failing request, not the
+  expected status.
+- **Change:** removing someone who isn't a co-speaker → `404`; adding the main speaker → `400`. `CoSpeakerDao.remove`
+  reports whether a row went; `ConferenceService` throws. Tests, `examples/co-speakers.hurl` and the team decisions
+  in `specs/co-speakers.md` updated. Still guesses: `409` for a third co-speaker, `404` for an unknown speaker.
+- **Evidence:** JUnit 43 green (JDK 25, Testcontainers); `check.sh` ALL GREEN against the jar on JDK 25 (this
+  sandbox's Docker builds can't reach Maven Central, so `local.sh up` and `compare.sh` weren't run).
+- **Deployed:** pending merge.
