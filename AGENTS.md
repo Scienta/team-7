@@ -56,6 +56,19 @@ how you work is your team's call, and your own instructions go in `.claude/rules
 - The filesystem is ephemeral. No other external dependencies. Any stack is allowed.
 - One instance, may scale to zero. Beyond 80 concurrent requests the platform answers `503` itself.
 
+## Fast lane: `[fast]` in the commit message (team-7)
+
+A normal push to `main` deploys only after the test suite passes (`quality` job in `.github/workflows/deploy.yml`).
+For a fix to a check that's **losing points right now**, put `[fast]` in the message of the commit you push to
+`main` (for a merged PR: in its title, which ends up in the merge commit), or run the deploy workflow by hand with
+`fast` checked. The fast lane skips the test gate and deploys as soon as the image is built, without re-tagging.
+
+- Still checked: the Docker build compiles the code, and the rollout rolls back if `/health` doesn't come up.
+- **Not checked: the tests.** Run them locally first (`./mvnw verify`, `workflow/bin/check.sh`) and say so in the
+  commit. The next normal push to `main` tests everything again, the fast commit included, and won't deploy if a
+  test fails.
+- Only for a fix to a failing check, never for features or refactors. Only the last commit of a push counts.
+
 ## Platform gotchas
 
 - Connection pool capped at 5 (`spring.datasource.hikari.maximum-pool-size`).

@@ -187,3 +187,14 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
 - **Evidence:** drift report before (10 drifted dimensions), `IN SHAPE` after `--sync`; `check.sh` 22/22 + races and
   `compare.sh` equivalent on the new data; new baseline on 2809 talks: 947 req/s, all p95 under 360 ms.
 - **Pushed:** see git log.
+
+## 17. A fix for a failing check waited for the whole test suite
+
+- **Problem:** a fix that stops us losing points deploys only after the test gate (`quality`, ~1 min), then the
+  deploy job pulls the image again just to tag it `:latest`.
+- **Change:** a fast lane in `deploy.yml`: `[fast]` in the pushed commit's message (or the `fast` input on a manual
+  run) skips `quality`, the image job pushes `:latest` itself, and deploy starts as soon as the image is pushed.
+  The build and the rollout's `/health` check and rollback stay. Documented in `AGENTS.md`.
+- **Evidence:** `actionlint` clean; the job conditions walked through for a normal push, a failing test, `[fast]`,
+  a manual fast run and a failed build. Not run yet (only `main` deploys).
+- **Deployed:** pending merge; the first `[fast]` push is its real test.

@@ -19,6 +19,19 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      fast:
+        description: Fast lane (skip the test gate), see below
+        type: boolean
+        default: false
+
+# Fast lane: "[fast]" in the commit message (for a merged PR, its title: it's in the merge commit's message),
+# or the fast input on a manual run. For a fix to a check that's losing points, when every minute counts:
+#   - the quality job (the test suite) is skipped, so deploy starts as soon as the image is pushed;
+#   - the image job pushes app:latest itself, so deploy skips its pull/tag/push.
+# Still there: the Docker build compiles the code, and rollout.sh checks /health and rolls back to the last
+# good image if the new one doesn't come up. Not there: the tests. The next normal push to main tests
+# everything again, the fast commit included, and doesn't deploy if a test fails.
 
 # One deploy at a time; a newer push waits rather than cancelling a deploy halfway.
 concurrency:
@@ -32,6 +45,7 @@ jobs:
   # The quality gate (workflow/quality-gate.md): the full test suite. Deploy needs it, so a failing
   # test never deploys.
   quality:
+    if: ${{ !(contains(github.event.head_commit.message, '[fast]') || inputs.fast) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -71,7 +85,8 @@ jobs:
           context: .
           platforms: linux/amd64
           build-args: GIT_SHA=${{ github.sha }}
-          tags: ${{ vars.SCW_REGISTRY }}/app:${{ github.sha }}
+          # Fast lane: :latest too, since there's no test gate to wait for.
+          tags: ${{ vars.SCW_REGISTRY }}/app:${{ github.sha }}${{ (contains(github.event.head_commit.message, '[fast]') || inputs.fast) && format(',{0}/app:latest', vars.SCW_REGISTRY) || '' }}
           push: true
           # A plain image, as before: no attestation manifests next to it in the registry.
           provenance: false
@@ -81,6 +96,8 @@ jobs:
 
   deploy:
     needs: [quality, image]
+    # Normally after both; in the fast lane quality is skipped and the image is enough.
+    if: ${{ !cancelled() && needs.image.result == 'success' && (needs.quality.result == 'success' || (needs.quality.result == 'skipped' && (contains(github.event.head_commit.message, '[fast]') || inputs.fast))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -105,6 +122,8 @@ jobs:
       # The image job pushed app:<sha>; point app:latest at it (the same pull/tag/push rollout.sh uses
       # to roll back).
       - name: Tag as latest
+        # The fast lane's image job already pushed :latest.
+        if: ${{ !(contains(github.event.head_commit.message, '[fast]') || inputs.fast) }}
         run: |
           echo "Tagging $IMAGE:$SHA as $IMAGE:latest"
           docker pull "$IMAGE:$SHA"
