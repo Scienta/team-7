@@ -33,9 +33,20 @@ if [[ $base != http://localhost* && $base != http://127.0.0.1* ]]; then
     echo "(not local: skipping the scheduling suites, they would write to the shared programme)"
 fi
 
+# Harness replays that touch the programme can't own their cells the way scheduling-*.hurl do (they replay whatever
+# cells the harness used), so they run one at a time after the parallel batch instead of colliding with it.
+parallel=() serial=()
+for f in "${files[@]}"; do
+    if [[ $f == workflow/hurl/harness/* ]] && grep -q '/programme/' "$f"; then serial+=("$f"); else parallel+=("$f"); fi
+done
+
 rc=0
-hurl --test --jobs 4 --variable "base_url=$base" --variable "run=$(date +%s)$RANDOM" \
-    --report-html .local/hurl-report "${files[@]}" || rc=1
+run="$(date +%s)$RANDOM"
+hurl --test --jobs 4 --variable "base_url=$base" --variable "run=$run" \
+    --report-html .local/hurl-report "${parallel[@]}" || rc=1
+if ((${#serial[@]} > 0)); then
+    hurl --test --jobs 1 --variable "base_url=$base" --variable "run=$run" "${serial[@]}" || rc=1
+fi
 if $race; then
     echo
     python3 workflow/bin/consistency.py "$base" | tail -1 || rc=1

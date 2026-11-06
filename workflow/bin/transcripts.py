@@ -83,6 +83,11 @@ def suite(feature, check, tick, requests):
                 lines.append(body)
             except ValueError:
                 lines.append(r["requestBody"])
+        cleanup = r["method"] == "DELETE" and all(q["method"] == "DELETE" for q in requests[:n + 1])
+        if cleanup and not (last and complete):
+            # The harness's opening clean-up: what it answers depends on the state before (204 or 404), not on us.
+            lines += ["HTTP *", "[Asserts]", "status < 500", ""]
+            continue
         if last and complete:  # the step the harness rejected
             lines += ["HTTP *", "[Asserts]", f"status != {r['status']}"]
         else:

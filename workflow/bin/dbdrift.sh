@@ -93,6 +93,8 @@ durations = {"LIGHTNING_10": 10, "LIGHTNING_20": 20, "PRESENTATION": 45, "WORKSH
 hist = {int(k): v for k, v in p["ratingHistogram"].items()}
 print("BEGIN;")
 print("TRUNCATE rating, talk_co_speaker, registration, talk, speaker RESTART IDENTITY;")
+# The programme is a fixed grid created at start-up: empty its cells, keep the rows.
+print("UPDATE programme SET talk_id = NULL;")
 speakers = max(3, int(n / 1.5))
 print(f"INSERT INTO speaker (name, email) SELECT 'Seed ' || g, 'seed-' || g || '@example.com' FROM generate_series(1, {speakers}) g;")
 per_speaker = {}
