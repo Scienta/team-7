@@ -124,3 +124,14 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   runs in UTC, so no visible change there), README run/API/test/deploy sections rewritten.
 - **Evidence:** JUnit 46 green; check.sh ALL GREEN; `/admin/talks.csv` byte-identical to `c8929ce` on 1533 talks.
 - **Deployed:** pending merge.
+
+## 10. The test suite spent most of its time waiting for timeouts
+
+- **Problem:** `./mvnw verify` took 40 s locally (59 s in CI, where it gates every deploy); `HealthTest` was 26 s of
+  it, mostly three sequential health checks against a paused database, each waiting out the 5 s timeout.
+- **Change:** `HealthTest` sends five probes at the same time (5 s instead of 15 s; they now really overlap, which is
+  the pile-up it guards against); surefire runs test classes in two JVMs (`forkCount=2`), so `HealthTest` runs
+  beside the rest.
+- **Evidence:** 40 s → 24.5-25.2 s over 3 runs, all 55 tests. With the single-flight probe broken (a thread per
+  request), the new `HealthTest` fails with "5 health-check threads".
+- **Deployed:** CI-only change; pending merge.
