@@ -53,11 +53,19 @@ public class ConferenceService {
 
     // ---------------------------------------------------------------- speakers
 
+    // At most 500 characters as people count them: an emoji is one, not two UTF-16 units.
+    private static void checkBio(String bio) {
+        if (bio != null && bio.codePointCount(0, bio.length()) > 500) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bio is at most 500 characters");
+        }
+    }
+
     @Transactional
     public Map<String, Object> registerSpeaker(SpeakerForm form) {
         if (!Utils.isValidEmail(form.getEmail())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid email");
         }
+        checkBio(form.getBio());
         if (speakerDao.emailTaken(form.getEmail())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
         }
@@ -94,9 +102,7 @@ public class ConferenceService {
         if (!Utils.isValidEmail(email)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid email");
         }
-        if (bio != null && bio.length() > 1000) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bio too long");
-        }
+        checkBio(bio);
         if (!email.equalsIgnoreCase((String) existing.get("email")) && speakerDao.emailTaken(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "email already registered");
         }

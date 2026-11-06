@@ -1,10 +1,10 @@
 package no.scienta.cfp;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 
 /**
- * Request body for POST /speakers.
+ * Request body for POST /speakers. The bio length is checked in ConferenceService: @Size counts UTF-16 units, so
+ * 500 emoji were too long.
  */
 public class SpeakerForm {
 
@@ -14,7 +14,6 @@ public class SpeakerForm {
     @NotBlank
     private String email;
 
-    @Size(max = 500)
     private String bio;
 
     // TODO twitter handle, see CFP-112
