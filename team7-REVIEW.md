@@ -9,8 +9,8 @@ at the end of the day. Times are local (CET). Sections marked **To discuss** are
 - **11 features claimed, every check that has run is OK**: speakers, talks, ratings, co-speakers, acceptance,
   spring-boot-4, workshop-registration, scheduling, programme-export, and the change requests ratings-cr and
   submission-cap-cr. Three checks hadn't run again yet (ratings 2 and 4, co-speakers 3).
-- **Service never reported down.** The points we lost all came from short bursts of timeouts, nearly all during
-  deploys (see Findings).
+- **Service never reported down.** The points we lost all came from short bursts of timeouts: during deploys,
+  and during our own test run against production (see Findings).
 - **60 commits from 5 people**: Rafael 25 (9 merged PRs), Rune 19, Per 10, Christian 4, Anders 2 (setup).
 
 ## What we built, in order
@@ -67,13 +67,23 @@ turned into Hurl replays (`transcripts.py`), so a check that failed once stays c
 
 ## Findings
 
-### 1. Deploys cost points, and we deployed a lot
+### 1. Timeouts cost points, and we caused them: deploys and our own load
 
 Most of the afternoon's failures were requests that got **no response at all**, not wrong answers: ticks 145,
-174, 191, 192, 194 and 206, between 1 and 5 checks each. At least three line up with a revision switch
-(`programme-export`, `submission-cap-cr`, Rune's `[fast]` at 15:52). Every one recovered on the next tick without a
-fix. With features landing every 15–20 minutes, plus `[fast]` fixes, the revision switches added up.
-`[no deploy]`, batching fixes, and the warm-up were the right moves; there's more to gain there.
+174, 191, 192, 194, 196–198 and 206, between 1 and 5 checks each. Every one recovered on the next tick without a
+fix. Two causes, both ours:
+
+- **Revision switches.** Ticks 145 (`programme-export`) and 206 (Rune's `[fast]` at 15:52) line up with a deploy.
+  With features landing every 15–20 minutes, plus `[fast]` fixes, they added up.
+- **Our own test run against production.** From 15:37 to 15:46 a `check.sh` ran against the live service, with
+  its race checks and consistency matrix. Its parallel bursts landed on top of the harness's and queued in front
+  of our single instance: requests the app answered in ~100 ms reached it seconds late (Per, `147c7ff`, ticks
+  196–198). Ticks 191, 192 and 194 fall in the same window, and `submission-cap-cr` also deployed then, so either
+  cause, or both, can explain them.
+
+`[no deploy]`, batching fixes and the warm-up were the right moves for the first. For the second, `147c7ff` made
+`check.sh` run only the Hurl suites, two at a time, against anything but localhost, and `perf.sh` refuse a remote
+target. Lesson: **never load-test the service while it's being scored.**
 
 ### 2. The talk table grows every tick, and it shows
 
@@ -93,7 +103,9 @@ who had picked it up. A claim on the harness only shows *after* the work.
 At tick 194, five checks timed out together, just after `submission-cap-cr` went live. The cap's full-table count
 looked like the cause, and a `[fast]` fix was ready. Measuring first (`EXPLAIN ANALYZE` on production-shaped data)
 showed 1.6 ms, far too little to drain a pool of 5. The checks recovered on their own. The fix shipped later as an
-ordinary `perf:` commit through the full gate instead. Measure before you `[fast]`.
+ordinary `perf:` commit through the full gate instead. Measure before you `[fast]`. The likelier cause turned out
+to be our own `check.sh` against production, running at that very moment (finding 1). Neither the harness
+transcript nor the code could show that; the request log did, which is why Per found it and we didn't.
 
 ### 5. Tooling assumptions break on other machines
 
@@ -118,6 +130,7 @@ ordinary `perf:` commit through the full gate instead. Measure before you `[fast
 - **Say who takes a feature the moment it's released**, before anyone starts. A message in the team chat or a
   line in a shared file is enough.
 - **Batch deploys** where nothing is failing, and keep `[fast]` for a check that's losing points, after measuring.
+- **Keep load tests local.** Against production, only light functional checks (`.claude/rules/testing.md`).
 - **Re-baseline perf as the data grows**, and make the tools say "hurl not installed" rather than `FAILURES`.
 - **Review agent-written tests** before trusting a red or green result from them.
 
