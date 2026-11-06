@@ -1,6 +1,8 @@
 package no.scienta.cfp;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -104,6 +106,61 @@ public class ProgrammeService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "nothing scheduled in " + room + " " + slot);
         }
         log.info("programme " + room + " " + slot + " cleared");
+    }
+
+    /**
+     * The whole programme for the website: one row per scheduled talk, in programme order (specs: programme-export;
+     * decisions: workflow/decisions/programme-export.md).
+     */
+    public List<Map<String, Object>> export() {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (ProgrammeDao.ExportRow r : programme.export()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("slot", r.slot());
+            row.put("start", SLOTS.get(r.slot())[0]);
+            row.put("end", SLOTS.get(r.slot())[1]);
+            row.put("room", r.room());
+            row.put("talkId", r.talkId());
+            row.put("title", r.title());
+            row.put("format", r.format());
+            row.put("speakers", r.speakers());
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    /** The CSV header line the print shop's tooling expects, exactly. */
+    static final String CSV_HEADER = "slot,start,end,room,talkId,title,format,speakers";
+
+    /**
+     * The same rows as {@link #export()} as CSV for the print shop: RFC 4180 fields, Unix line endings, every line
+     * (the header too) ending in a newline, nothing after the last one. Speakers in one field, joined with "; ".
+     */
+    public String exportCsv() {
+        StringBuilder csv = new StringBuilder(CSV_HEADER).append('\n');
+        for (ProgrammeDao.ExportRow r : programme.export()) {
+            csv.append(r.slot()).append(',')
+                    .append(SLOTS.get(r.slot())[0]).append(',')
+                    .append(SLOTS.get(r.slot())[1]).append(',')
+                    .append(r.room()).append(',')
+                    .append(r.talkId()).append(',')
+                    .append(csvField(r.title())).append(',')
+                    .append(csvField(r.format())).append(',')
+                    .append(csvField(String.join("; ", r.speakers())))
+                    .append('\n');
+        }
+        return csv.toString();
+    }
+
+    /** RFC 4180: quoted only when it has to be (a comma, a quote or a line break), with quotes doubled inside. */
+    static String csvField(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.indexOf(',') >= 0 || value.indexOf('"') >= 0 || value.indexOf('\n') >= 0 || value.indexOf('\r') >= 0) {
+            return '"' + value.replace("\"", "\"\"") + '"';
+        }
+        return value;
     }
 
     private static void requireCell(String room, String slot) {
