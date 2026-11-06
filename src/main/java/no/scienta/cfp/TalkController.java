@@ -39,6 +39,16 @@ public class TalkController {
         return service.listTalks(sort, speakerId);
     }
 
+    @PutMapping("/talks/{id}/status")
+    public TalkDto decide(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> body) {
+        return service.decide(id, body);
+    }
+
+    @PostMapping("/talks/{id}/withdraw")
+    public TalkDto withdraw(@PathVariable Long id, @RequestBody(required = false) Map<String, Object> body) {
+        return service.withdraw(id, body);
+    }
+
     @PutMapping("/talks/{id}/ratings/{reviewerId}")
     public Map<String, Object> rate(@PathVariable Long id, @PathVariable Long reviewerId,
                                     @RequestBody Map<String, Object> body) {

@@ -67,6 +67,35 @@ public class TalkDao {
         return ids.isEmpty() ? null : ids.get(0);
     }
 
+    /**
+     * Moves the talk to {@code to} only if its status is one of {@code from}, it has at least {@code minReviewers}
+     * distinct reviewers, and (when {@code speakerId} isn't null) it belongs to that speaker. One statement, so two
+     * concurrent changes can't both pass the check: the second re-evaluates the WHERE against the first's result.
+     * Returns true if the talk was changed.
+     */
+    public boolean updateStatusIf(long id, String to, java.util.Collection<String> from, int minReviewers, Long speakerId) {
+        List<Object> args = new java.util.ArrayList<>();
+        args.add(to);
+        args.add(id);
+        StringBuilder sql = new StringBuilder("UPDATE talk SET status = ? WHERE id = ? AND status IN (");
+        for (String s : from) {
+            sql.append(args.size() > 2 ? ", ?" : "?");
+            args.add(s);
+        }
+        sql.append(")");
+        if (minReviewers > 0) {
+            // (talk_id, reviewer_id) is the rating's primary key, so COUNT(*) counts distinct reviewers
+            sql.append(" AND (SELECT COUNT(*) FROM rating WHERE talk_id = ?) >= ?");
+            args.add(id);
+            args.add(minReviewers);
+        }
+        if (speakerId != null) {
+            sql.append(" AND speaker_id = ?");
+            args.add(speakerId);
+        }
+        return jdbc.update(sql.toString(), args.toArray()) == 1;
+    }
+
     // old version, raced when the mobile app double-posted
     // public long insert(String title, String format, int duration, String level, long speakerId) {
     //     jdbc.update("INSERT INTO talk (title, format, duration, level, status, speaker_id) VALUES (?, ?, ?, ?, 'SUBMITTED', ?)",

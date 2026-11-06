@@ -229,6 +229,59 @@ public class ConferenceService {
         // return Utils.roundRating((double) total / count);
     }
 
+    // ---------------------------------------------------------------- acceptance
+
+    // For each status a talk can move to, the statuses it may come from. See specs/acceptance.md.
+    private static final Map<String, List<String>> ALLOWED_FROM = new LinkedHashMap<>();
+
+    static {
+        ALLOWED_FROM.put("ACCEPTED", Arrays.asList("SUBMITTED", "WAITLISTED"));
+        ALLOWED_FROM.put("REJECTED", Arrays.asList("SUBMITTED", "WAITLISTED"));
+        ALLOWED_FROM.put("WAITLISTED", Arrays.asList("SUBMITTED"));
+        ALLOWED_FROM.put("WITHDRAWN", Arrays.asList("SUBMITTED", "WAITLISTED", "ACCEPTED"));
+    }
+
+    private static final int MIN_REVIEWERS_TO_ACCEPT = 2;
+
+    @Transactional
+    public TalkDto decide(long talkId, Map<String, Object> body) {
+        Object status = body == null ? null : body.get("status");
+        if (!("ACCEPTED".equals(status) || "REJECTED".equals(status) || "WAITLISTED".equals(status))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "status must be ACCEPTED, REJECTED or WAITLISTED");
+        }
+        String to = (String) status;
+        int minReviewers = to.equals("ACCEPTED") ? MIN_REVIEWERS_TO_ACCEPT : 0;
+        if (!talkDao.updateStatusIf(talkId, to, ALLOWED_FROM.get(to), minReviewers, null)) {
+            TalkDto talk = getTalk(talkId);  // 404 if it doesn't exist
+            if (!ALLOWED_FROM.get(to).contains(talk.status)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "a " + talk.status + " talk can't become " + to);
+            }
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "a talk needs ratings from at least " + MIN_REVIEWERS_TO_ACCEPT + " reviewers to be accepted");
+        }
+        log.info("talk " + talkId + " -> " + to);
+        return getTalk(talkId);
+    }
+
+    @Transactional
+    public TalkDto withdraw(long talkId, Map<String, Object> body) {
+        Object speaker = body == null ? null : body.get("speakerId");
+        if (!(speaker instanceof Integer || speaker instanceof Long)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "speakerId must be a whole number");
+        }
+        long speakerId = ((Number) speaker).longValue();
+        TalkDto talk = getTalk(talkId);  // 404 if it doesn't exist
+        if (talk.speakerId != speakerId) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "only the talk's speaker can withdraw it");
+        }
+        if (!talkDao.updateStatusIf(talkId, "WITHDRAWN", ALLOWED_FROM.get("WITHDRAWN"), 0, speakerId)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "a " + getTalk(talkId).status + " talk can't be withdrawn");
+        }
+        log.info("talk " + talkId + " withdrawn by speaker " + speakerId);
+        return getTalk(talkId);
+    }
+
     // ---------------------------------------------------------------- statistics
 
     public Map<String, Object> statistics() {
