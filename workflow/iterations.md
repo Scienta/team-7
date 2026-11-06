@@ -264,3 +264,28 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   10 talks → 1 cell, 1 talk → 5 slots, 1 speaker → 3 rooms, each exactly one 200, no 5xx); `compare.sh`
   EQUIVALENT to `c48a6e4`.
 - **Pushed:** see below.
+
+## 23. Timeouts on the first harness burst after a deploy (ticks 36, 100, 103)
+
+- **Problem:** at tick 100 nearly every check failed on its first request (`POST /speakers`: no response), and five
+  more at tick 103. Each was the harness's first burst on a revision started a minute before: p95 3.9 s and 2.6 s,
+  slowest 4.8 s and 5.3 s, against p95 0.3-0.5 s once warm (13:12-13:16). Three rollouts in four minutes (13:05-13:09),
+  none of which changed the service. About 25 points lost.
+- **Change:** a `warmup` job after `deploy` (`continue-on-error`, so it never fails the deploy) runs
+  `workflow/bin/warmup.py`: six rounds of ~150 parallel requests along the harness's paths, only reads and writes
+  rejected before writing. With `[no deploy]` (on main since #5), CI/docs/tooling merges no longer roll out.
+- **Evidence:** all six tables byte-identical before and after a warm-up (924 requests: 446 GET 200, 420 POST/PUT
+  400, 60 DELETE 404). At 0.5 CPU, a burst of ~230 requests (every Hurl suite) on a cold instance: p50 91-94 ms, p95
+  ~308 ms, max 1.1-1.4 s, and the "< 1 s" speed assertions failed in 2 of 3 runs; after a warm-up: p50 7-8 ms, p95
+  102-144 ms, max 0.4-0.6 s, all green.
+- **Deployed:** pending merge.
+
+## 22. Node 20 deprecation warnings; ubuntu-latest moving to Ubuntu 26.04
+
+- **Problem:** `actions/cache@v4`, `docker/setup-buildx-action@v3` and `docker/build-push-action@v6` run on Node 20
+  (deprecated, forced onto Node 24); `ubuntu-latest` becomes Ubuntu 26.04 from 2026-10-19, where Hurl's .deb doesn't
+  install (seen on the fork).
+- **Change:** `actions/cache@v5`, `setup-buildx-action@v4`, `build-push-action@v7` (each declares `node24`; every
+  input we use exists in v7); every job in `deploy.yml` and `logs.yml` on `ubuntu-24.04`.
+- **Evidence:** `actionlint` clean; action runtimes read from each tag's `action.yml`.
+- **Deployed:** pending merge; the image job's new action versions first run on the next deploying push.

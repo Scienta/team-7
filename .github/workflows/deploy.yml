@@ -46,13 +46,16 @@ concurrency:
 permissions:
   contents: read
 
+# Every job runs on ubuntu-24.04, not ubuntu-latest: that label moves to Ubuntu 26.04 from 2026-10-19, where e.g.
+# Hurl's .deb no longer installs. Pinned, the runner only changes when we change it.
+
 jobs:
   # The quality gate (workflow/quality-gate.md): the full test suite. Deploy needs it, so a failing
   # test never deploys.
   quality:
     # Skipped only in the fast lane; [no deploy] still runs it (and wins over [fast]).
     if: ${{ !(contains(github.event.head_commit.message, '[fast]') || inputs.fast) || contains(github.event.head_commit.message, '[no deploy]') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
@@ -61,7 +64,7 @@ jobs:
           distribution: temurin
           java-version: "25"
       - name: Cache ~/.m2
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.m2/repository
@@ -76,7 +79,7 @@ jobs:
   # touches app:latest: that's the deploy job's, after the tests.
   image:
     if: ${{ !contains(github.event.head_commit.message, '[no deploy]') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
@@ -85,9 +88,9 @@ jobs:
       - uses: actions/checkout@v5
       - name: Log in to the registry
         run: echo "$SCW_SECRET_KEY" | docker login "${SCW_REGISTRY%%/*}" --username nologin --password-stdin
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - name: Build and push app:<sha>
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64
@@ -105,7 +108,7 @@ jobs:
     needs: [quality, image]
     # Normally after both; in the fast lane quality is skipped and the image is enough.
     if: ${{ !cancelled() && needs.image.result == 'success' && (needs.quality.result == 'success' || (needs.quality.result == 'skipped' && (contains(github.event.head_commit.message, '[fast]') || inputs.fast))) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
@@ -152,3 +155,18 @@ jobs:
           echo "error_message: $(scw container container get "$SCW_CONTAINER_ID" -o json | jq -r '.error_message // "(none)"')" || true
           .github/fagdag/logs.sh --tail 200 --since "$ROLLOUT_STARTED_AT"
 
+  # A new revision hasn't compiled its hot paths yet: on the platform's small CPU, the harness's first burst after a
+  # deploy took up to 5 s per request (ticks 100 and 103 timed out). This sends that kind of traffic first, but only
+  # requests that change nothing (reads, and writes rejected before writing: workflow/bin/warmup.py). After the
+  # deploy, as a job of its own that may fail: it never fails or holds up the deploy.
+  warmup:
+    needs: deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - name: Warm up the new revision
+        env:
+          TEAM_URL: ${{ vars.TEAM_URL }}
+        run: python3 workflow/bin/warmup.py "$TEAM_URL"
