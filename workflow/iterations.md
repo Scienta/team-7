@@ -228,7 +228,8 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
 
 - **Problem:** docs, workflow, rules and test-only pushes each ran the tests, built an image and switched the
   container to a new revision: Actions minutes for nothing, and a switchover in which requests can fail (tick 36).
-- **Change:** `[no deploy]` in the pushed commit's message skips every job in `deploy.yml`; it wins over `[fast]`;
+- **Change:** `[no deploy]` in the pushed commit's message still runs the tests but skips the image and the
+  rollout (at first it skipped every job; the tests now run so `main` stays checked); it wins over `[fast]`;
   a manual run always deploys. `AGENTS.md` now says which changes deploy (fixes, features) and which don't.
 - **Evidence:** `actionlint` clean; job conditions checked for normal, `[fast]`, `[no deploy]`, both, and manual runs.
 - **Deployed:** this commit is itself `[no deploy]`.
