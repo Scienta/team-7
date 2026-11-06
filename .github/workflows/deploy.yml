@@ -1,7 +1,8 @@
 # Deploys main to your team URL (deploy contract: README.md).
 #
-# The job builds the root Dockerfile with this commit's SHA baked in, pushes it to your registry as
-# app:<sha> and app:latest, and runs .github/fagdag/rollout.sh. That redeploys your container, fails
+# The image job builds the root Dockerfile with this commit's SHA baked in and pushes it to your registry
+# as app:<sha>, in parallel with the quality job (the tests). Only when both pass does the deploy job point
+# app:latest at app:<sha> and run .github/fagdag/rollout.sh, so :latest never holds an untested image. That redeploys your container, fails
 # unless Scaleway reports it ready, then waits up to 60 s for GET /health to answer 200 with this
 # commit's SHA as its version. If any of that fails, it points app:latest back at the version that
 # was live before (which keeps serving) and the job fails, with the container's error_message and
@@ -50,8 +51,36 @@ jobs:
       - name: Test suite
         run: ./mvnw -B verify
 
+  # Builds and pushes app:<sha> while the tests run. Buildx with the GitHub Actions cache reuses the
+  # Dockerfile's layers between runs (above all the dependency layer, until pom.xml changes). It never
+  # touches app:latest: that's the deploy job's, after the tests.
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_REGISTRY: ${{ vars.SCW_REGISTRY }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Log in to the registry
+        run: echo "$SCW_SECRET_KEY" | docker login "${SCW_REGISTRY%%/*}" --username nologin --password-stdin
+      - uses: docker/setup-buildx-action@v3
+      - name: Build and push app:<sha>
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          build-args: GIT_SHA=${{ github.sha }}
+          tags: ${{ vars.SCW_REGISTRY }}/app:${{ github.sha }}
+          push: true
+          # A plain image, as before: no attestation manifests next to it in the registry.
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   deploy:
-    needs: quality
+    needs: [quality, image]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -73,11 +102,13 @@ jobs:
           version: v2.65.2
       - name: Log in to the registry
         run: echo "$SCW_SECRET_KEY" | docker login "${SCW_REGISTRY%%/*}" --username nologin --password-stdin
-      - name: Build and push
+      # The image job pushed app:<sha>; point app:latest at it (the same pull/tag/push rollout.sh uses
+      # to roll back).
+      - name: Tag as latest
         run: |
-          echo "Building $SHA as $IMAGE:$SHA and $IMAGE:latest"
-          docker build --platform linux/amd64 --build-arg "GIT_SHA=$SHA" --tag "$IMAGE:$SHA" --tag "$IMAGE:latest" .
-          docker push "$IMAGE:$SHA"
+          echo "Tagging $IMAGE:$SHA as $IMAGE:latest"
+          docker pull "$IMAGE:$SHA"
+          docker tag "$IMAGE:$SHA" "$IMAGE:latest"
           docker push "$IMAGE:latest"
       - name: Roll out
         id: rollout
