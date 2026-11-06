@@ -52,3 +52,12 @@ CREATE INDEX IF NOT EXISTS ix_talk_speaker ON talk (speaker_id);
 -- 2026-11 reviewers are any positive whole number; INTEGER overflowed into a 500 above 2147483647.
 -- A no-op once the column is BIGINT, so it's safe on every start-up.
 ALTER TABLE rating ALTER COLUMN reviewer_id TYPE BIGINT;
+
+-- 2026-11 co-speakers: up to two per talk, besides the main speaker (talk.speaker_id). seq keeps the order they
+-- were added in; the unique constraint makes adding someone twice impossible, also under concurrent requests.
+CREATE TABLE IF NOT EXISTS talk_co_speaker (
+    seq        BIGSERIAL PRIMARY KEY,
+    talk_id    INTEGER NOT NULL,
+    speaker_id INTEGER NOT NULL,
+    UNIQUE (talk_id, speaker_id)
+);

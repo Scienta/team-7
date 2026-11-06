@@ -53,6 +53,15 @@ public class TalkDao {
     }
 
     /**
+     * Locks the talk's row until the transaction ends and returns its main speaker, or null if there's no such talk.
+     * Serialises changes to one talk's co-speakers, so concurrent additions can't push it past the limit.
+     */
+    public Long lockAndGetSpeaker(long id) {
+        List<Long> rows = jdbc.queryForList("SELECT speaker_id FROM talk WHERE id = ? FOR UPDATE", Long.class, id);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    /**
      * Inserts the talk only if the speaker has fewer than {@code max} talks. Returns the new id, or null.
      * The speaker row is locked first so two submissions for the same speaker can't both see room under the limit.
      */
