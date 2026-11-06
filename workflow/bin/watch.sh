@@ -28,7 +28,8 @@ until before=$(state); do
 done
 fails=0
 # Already broken when we start: say so now, don't wait for a change.
-problems=$(grep -E '^(check |down true)' <<<"$before" | grep -v ' OK$' || true)
+# null = not run yet (just claimed), not a failure
+problems=$(grep -E '^(check |down true)' <<<"$before" | grep -vE ' (OK|null)$' || true)
 if [[ -n $problems ]]; then
     echo "harness already reports problems at $(date -u +%H:%M:%SZ):"
     sed 's/^/  /' <<<"$problems"

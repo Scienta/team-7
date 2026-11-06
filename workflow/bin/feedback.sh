@@ -46,7 +46,7 @@ if [[ -f $dir/previous.json ]]; then
     if [[ -n $changes ]]; then echo "changed since last run:"; echo "$changes"; else echo "no changes since last run"; fi
 fi
 
-bad=$(jq -r '.features[] as $f | ($f.checks // [])[] | select(.status != "OK") | "\($f.slug)/\(.name)"' $dir/latest.json)
+bad=$(jq -r '.features[] as $f | ($f.checks // [])[] | select(.status != "OK" and .status != null) | "\($f.slug)/\(.name)"' $dir/latest.json)
 for check in $bad; do
     echo
     echo "=== $check"
