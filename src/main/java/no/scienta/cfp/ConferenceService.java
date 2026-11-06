@@ -146,7 +146,8 @@ public class ConferenceService {
 
         Long id = checkSubmissionLimit(form, duration);
         if (id == null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "a speaker can submit at most " + MAX_TALKS + " talks");
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "a speaker presents at most " + MAX_TALKS + " talks, co-speaking included");
         }
         Map<String, Object> speaker = speakerDao.findById(form.speakerId);
         notifications.talkSubmitted((String) speaker.get("email"), form.title);
@@ -281,6 +282,16 @@ public class ConferenceService {
         if (!current.contains(speakerId)) {
             if (current.size() >= MAX_CO_SPEAKERS) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "a talk has at most " + MAX_CO_SPEAKERS + " co-speakers");
+            }
+            // Co-speaking counts towards the speaker's limit, unless the talk is out of the running
+            // (specs/submission-cap-cr.md, workflow/decisions/submission-cap-cr.md).
+            String status = talkDao.status(talkId);
+            if (!"REJECTED".equals(status) && !"WITHDRAWN".equals(status)) {
+                talkDao.lockSpeaker(speakerId);
+                if (talkDao.countPresenting(speakerId) >= MAX_TALKS) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                            "speaker " + speakerId + " already presents " + MAX_TALKS + " talks");
+                }
             }
             coSpeakerDao.add(talkId, speakerId);
         }

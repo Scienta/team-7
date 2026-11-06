@@ -107,13 +107,37 @@ public class TalkDao {
      */
     @Transactional
     public Long insertIfBelow(int max, String title, String format, int duration, String level, long speakerId, long submittedAt) {
-        jdbc.queryForList("SELECT id FROM speaker WHERE id = ? FOR UPDATE", speakerId);
+        lockSpeaker(speakerId);
         List<Long> ids = jdbc.queryForList(
                 "INSERT INTO talk (title, format, duration, level, status, speaker_id, submitted_at) "
                         + "SELECT ?, ?, ?, ?, 'SUBMITTED', ?, ? "
-                        + "WHERE (SELECT COUNT(*) FROM talk WHERE speaker_id = ?) < ? RETURNING id",
-                Long.class, title, format, duration, level, speakerId, submittedAt, speakerId, max);
+                        + "WHERE (" + PRESENTING + ") < ? RETURNING id",
+                Long.class, title, format, duration, level, speakerId, submittedAt, speakerId, speakerId, max);
         return ids.isEmpty() ? null : ids.get(0);
+    }
+
+    /**
+     * How many talks a speaker presents that still count towards the limit (specs/submission-cap-cr.md): as main
+     * speaker or co-speaker, not rejected or withdrawn. Takes the speaker id twice.
+     */
+    private static final String PRESENTING = "SELECT COUNT(*) FROM talk p WHERE p.status NOT IN ('REJECTED', 'WITHDRAWN') "
+            + "AND (p.speaker_id = ? OR EXISTS (SELECT 1 FROM talk_co_speaker c WHERE c.talk_id = p.id AND c.speaker_id = ?))";
+
+    public int countPresenting(long speakerId) {
+        return jdbc.queryForObject(PRESENTING, Integer.class, speakerId, speakerId);
+    }
+
+    /**
+     * Locks the speaker's row until the transaction ends. Every path that can add to a speaker's count takes it
+     * (a submission, being added as co-speaker), so they queue up per speaker and the limit can't be overtaken.
+     * Order where both are needed: the talk first, then the speaker.
+     */
+    public void lockSpeaker(long speakerId) {
+        jdbc.queryForList("SELECT id FROM speaker WHERE id = ? FOR UPDATE", speakerId);
+    }
+
+    public String status(long id) {
+        return jdbc.queryForObject("SELECT status FROM talk WHERE id = ?", String.class, id);
     }
 
     /**

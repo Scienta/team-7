@@ -338,3 +338,19 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   lists / CSV, only averages and the order they imply. Ratings checks 2 and 4 pending since the release, 1/3/5 OK:
   normal push (not `[fast]`), claim after it's live.
 - **Pushed:** see below.
+
+## 29. Submission cap change request (`submission-cap-cr`): co-speaking counts, rejected/withdrawn don't
+
+- **Problem:** change request at tick 180: the 3-talk cap counts talks a speaker presents as main or co-speaker,
+  except rejected and withdrawn ones; a speaker at the limit can't submit or be added as co-speaker to a talk in the
+  running; places free up at once; a popular speaker's submissions and invitations racing must hold the limit.
+- **Change:** `TalkDao.PRESENTING` count (main or co-speaker, not REJECTED/WITHDRAWN) in `insertIfBelow`;
+  `ConferenceService.addCoSpeaker` locks the added speaker's row (talk first, then speaker) and returns 409 at the
+  limit unless the talk is out of the running; re-adding stays 200. Decisions in
+  `workflow/decisions/submission-cap-cr.md`. Old-rule checks updated (`CoSpeakersTest`, `race.sh`), and
+  `consistency.py` uses a fresh co-speaker per call (a shared one would hit the cap).
+- **Evidence:** `SubmissionCapSpecTest` 23 black-box tests (one assumed 204 for removing a co-speaker; the spec says
+  200 with the Talk); `verify` 171 green; 3 new `submission-cap-*.hurl`; race: 1 own + 3 submissions + 3
+  invitations at once → exactly 2, presents 3; after a rejection 5 at once → 1; `check.sh` ALL GREEN;
+  `compare.sh` EQUIVALENT to `b5ed44a`. Normal push (co-speakers check 3 pending, nothing failing).
+- **Pushed:** see below.

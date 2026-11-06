@@ -160,7 +160,7 @@ class CoSpeakersTest {
 
 
     @Test
-    void coSpeakingNeitherShowsInTheOwnTalkListNorUsesUpTheLimit() throws Exception {
+    void coSpeakingDoesNotShowInTheOwnTalkListButCountsTowardsTheLimit() throws Exception {
         String busy = newSpeaker();
         for (int i = 0; i < 2; i++) {
             assertEquals(200, send("PUT", coSpeaker(newTalk(newSpeaker()), busy), null).statusCode());
@@ -169,14 +169,11 @@ class CoSpeakersTest {
         assertEquals("[]", own.body());
         assertEquals("[]", send("GET", "/talks?speakerId=" + busy, null).body());
 
-        for (int i = 0; i < 3; i++) {
-            newTalk(busy);
-        }
+        // since submission-cap-cr co-speaking counts: 2 co-speaking places leave room for 1 own talk
+        newTalk(busy);
         assertEquals(409, send("POST", "/talks", talk(busy)).statusCode());
-
-        // at the limit of their own talks, they can still co-speak on someone else's
-        assertEquals(200, send("PUT", coSpeaker(newTalk(newSpeaker()), busy), null).statusCode());
-        assertEquals(3, count(send("GET", "/speakers/" + busy + "/talks", null).body()));
+        assertEquals(409, send("PUT", coSpeaker(newTalk(newSpeaker()), busy), null).statusCode());
+        assertEquals(1, count(send("GET", "/speakers/" + busy + "/talks", null).body()));
     }
 
     @Test

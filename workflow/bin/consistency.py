@@ -111,6 +111,9 @@ def main():
             row = []
             for name, make in ENDPOINTS:
                 t, owner = talk(fmt, status)
+                # a fresh "other" each time: co-speaking counts towards the 3-talk cap (submission-cap-cr), so one
+                # shared speaker would hit it after three co-speaker calls and turn later columns into 409s
+                other = speaker()
                 if name in SETUP:
                     SETUP[name](t, owner, other)
                 method, path, body = make(t, owner, other)

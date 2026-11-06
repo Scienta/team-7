@@ -174,15 +174,28 @@ expect "co-speakers: remove + 2 adds on a full talk -> still at most 2, no dupli
     "$(get "/talks/$t" 'str(len(t["coSpeakerIds"]) <= 2 and len(t["coSpeakerIds"]) == len(set(t["coSpeakerIds"]))).lower()')"
 no5xx "co-speakers: full-talk swap" "$codes"
 
-# Co-speaking doesn't use up submissions: a speaker on three other talks still gets exactly three of their own.
-busy=${co[5]}
-for i in 1 2 3; do
-    o=$(speaker "owner$i")
-    req PUT "/talks/$(talk "$o")/co-speakers/$busy" >/dev/null
-done
-codes=$(for i in $(seq 1 6); do req POST /talks "{\"title\":\"Own $i\",\"format\":\"WORKSHOP\",\"level\":\"BEGINNER\",\"speakerId\":$busy}" & done; wait)
-expect "co-speakers: co-speaker on 3 talks submits 6 at once -> exactly 3 created" 3 "$(count ' 201$' "$codes")"
-expect "co-speakers: own talk list shows only the 3 own talks" 3 "$(get "/speakers/$busy/talks" 'len(t)')"
+# ---------------------------------------------------------------- submission cap (submission-cap-cr)
+
+# A popular speaker: submissions and co-speaker invitations pile in together. They present at most 3 talks in
+# the running, main or co-speaking, so with one talk already only 2 of 6 mixed requests can succeed.
+busy=$(speaker popular)
+own=$(talk "$busy")
+invites=(); for i in 1 2 3; do invites+=("$(talk "$(speaker "host$i")")"); done
+codes=$( (for i in 1 2 3; do req POST /talks "{\"title\":\"Own $i\",\"format\":\"WORKSHOP\",\"level\":\"BEGINNER\",\"speakerId\":$busy}" SUBMIT & done
+          for t in "${invites[@]}"; do req PUT "/talks/$t/co-speakers/$busy" "" INVITE & done; wait) )
+expect "submission cap: 1 own talk + 3 submissions + 3 invitations at once -> exactly 2 succeed" 2 "$(count ' (200|201)$' "$codes")"
+presenting=$(( $(get "/speakers/$busy/talks" 'len(t)') + $(for t in "${invites[@]}"; do get "/talks/$t" "int($busy in t['coSpeakerIds'])"; done | paste -sd+ - | bc) ))
+expect "submission cap: presents exactly 3 talks afterwards" 3 "$presenting"
+expect "submission cap: own talk list shows only own talks" "$(( $(count '^SUBMIT 201$' "$codes") + 1 ))" "$(get "/speakers/$busy/talks" 'len(t)')"
+no5xx "submission cap: mixed rush" "$codes"
+
+# A rejected talk frees its place straight away, also when the freeing and new requests race.
+main=$(speaker freed)
+t1=$(talk "$main"); talk "$main" >/dev/null; talk "$main" >/dev/null
+req PUT "/talks/$t1/status" '{"status":"REJECTED"}' >/dev/null
+codes=$(for i in $(seq 1 5); do req POST /talks "{\"title\":\"Again $i\",\"format\":\"WORKSHOP\",\"level\":\"BEGINNER\",\"speakerId\":$main}" & done; wait)
+expect "submission cap: after a rejection, 5 submissions at once -> exactly 1 created" 1 "$(count ' 201$' "$codes")"
+no5xx "submission cap: freed place" "$codes"
 
 # ---------------------------------------------------------------- workshop registration
 
