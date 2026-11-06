@@ -3,16 +3,28 @@
 # so we never write to the production programme the harness uses.
 
 DELETE {{base_url}}/programme/R2/S2
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 DELETE {{base_url}}/programme/R3/S2
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 DELETE {{base_url}}/programme/R2/S3
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 DELETE {{base_url}}/programme/R3/S3
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 # one main speaker, two talks, one slot
 POST {{base_url}}/speakers
@@ -193,14 +205,25 @@ PUT {{base_url}}/programme/R3/S3
 HTTP 409
 
 DELETE {{base_url}}/programme/R2/S2
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 DELETE {{base_url}}/programme/R3/S2
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 DELETE {{base_url}}/programme/R2/S3
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 DELETE {{base_url}}/programme/R3/S3
-HTTP 204
-
+HTTP *
+[Asserts]
+status >= 204
+status <= 404

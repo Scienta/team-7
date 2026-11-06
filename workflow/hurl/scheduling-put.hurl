@@ -3,10 +3,16 @@
 # so we never write to the production programme the harness uses.
 
 DELETE {{base_url}}/programme/R1/S1
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 DELETE {{base_url}}/programme/R2/S5
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 POST {{base_url}}/speakers
 { "name": "t", "email": "t-{{newUuid}}@example.com" }
@@ -64,13 +70,18 @@ HTTP 200
 [Asserts]
 jsonpath "$.start" == "15:45"
 
-# taking out an empty cell is fine too
+# taking out an empty cell: nothing to take out
 DELETE {{base_url}}/programme/R1/S1
-HTTP 204
+HTTP 404
 
 DELETE {{base_url}}/programme/R1/S1
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 DELETE {{base_url}}/programme/R2/S5
-HTTP 204
-
+HTTP *
+[Asserts]
+status >= 204
+status <= 404

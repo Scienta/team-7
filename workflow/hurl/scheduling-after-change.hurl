@@ -3,7 +3,10 @@
 # so we never write to the production programme the harness uses.
 
 DELETE {{base_url}}/programme/R1/S4
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 POST {{base_url}}/speakers
 { "name": "kept", "email": "kept-{{newUuid}}@example.com" }
@@ -71,5 +74,7 @@ HTTP 200
 jsonpath "$.talkId" == {{kept}}
 
 DELETE {{base_url}}/programme/R1/S4
-HTTP 204
-
+HTTP *
+[Asserts]
+status >= 204
+status <= 404

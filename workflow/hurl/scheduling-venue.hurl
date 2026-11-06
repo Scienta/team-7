@@ -3,7 +3,10 @@
 # so we never write to the production programme the harness uses.
 
 DELETE {{base_url}}/programme/R3/S1
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 # an empty cell has nothing to show (harness scheduling/check-2..5)
 GET {{base_url}}/programme/R3/S1
@@ -58,4 +61,3 @@ HTTP 404
 PUT {{base_url}}/programme/R0/S0
 { "talkId": 1 }
 HTTP 404
-

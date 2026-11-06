@@ -41,8 +41,9 @@ Checked in this order; the first that applies wins, and a rejected request chang
 
 ## DELETE /programme/{room}/{slot}
 
-- `204`, also when the room and slot is already empty (idempotent) **(risk: could be 200 or 404)**. Afterwards
-  the talk can be put somewhere else.
+- `204` when it takes a talk out; `404` when the room and slot is already empty: nothing to take out, like a `GET`
+  on an empty cell. Was `204` (idempotent); the harness's scheduling/check-1 failed on a second `DELETE` of an
+  emptied cell (tick 131). Our suites' clean-up `DELETE`s accept either.
 - Works whatever the talk's status is now.
 
 ## Concurrency

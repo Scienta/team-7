@@ -53,7 +53,8 @@ class SchedulingSpecTest {
     void emptyProgramme() throws Exception {
         for (String room : ROOMS) {
             for (String slot : SLOTS) {
-                assertEquals(204, send("DELETE", cell(room, slot), null).statusCode());
+                int status = send("DELETE", cell(room, slot), null).statusCode();
+                assertTrue(status == 204 || status == 404, cell(room, slot) + " -> " + status);
             }
         }
     }
@@ -122,10 +123,10 @@ class SchedulingSpecTest {
     }
 
     @Test
-    @DisplayName("R2: DELETE on an empty cell is 204")
-    void deleteOnEmptyCellIs204() throws Exception {
-        assertEquals(204, send("DELETE", cell("R3", "S5"), null).statusCode());
-        assertEquals(204, send("DELETE", cell("R3", "S5"), null).statusCode());
+    @DisplayName("R2: DELETE on an empty cell is 404: nothing to take out")
+    void deleteOnEmptyCellIs404() throws Exception {
+        assertEquals(404, send("DELETE", cell("R3", "S5"), null).statusCode());
+        assertEquals(404, send("DELETE", cell("R3", "S5"), null).statusCode());
     }
 
     @Test

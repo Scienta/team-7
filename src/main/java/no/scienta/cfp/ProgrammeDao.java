@@ -67,7 +67,9 @@ public class ProgrammeDao {
         jdbc.update("UPDATE programme SET talk_id = ? WHERE room = ? AND slot = ?", talkId, room, slot);
     }
 
-    public void clear(String room, String slot) {
-        jdbc.update("UPDATE programme SET talk_id = NULL WHERE room = ? AND slot = ?", room, slot);
+    /** Takes the talk out of the cell; false if there was none. */
+    public boolean clear(String room, String slot) {
+        return jdbc.update("UPDATE programme SET talk_id = NULL WHERE room = ? AND slot = ? AND talk_id IS NOT NULL",
+                room, slot) > 0;
     }
 }

@@ -3,10 +3,16 @@
 # so we never write to the production programme the harness uses.
 
 DELETE {{base_url}}/programme/R2/S1
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 DELETE {{base_url}}/programme/R2/S4
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 POST {{base_url}}/speakers
 { "name": "submitted", "email": "submitted-{{newUuid}}@example.com" }
@@ -191,8 +197,13 @@ HTTP 200
 jsonpath "$.talkId" == {{lightning}}
 
 DELETE {{base_url}}/programme/R2/S1
-HTTP 204
+HTTP *
+[Asserts]
+status >= 204
+status <= 404
 
 DELETE {{base_url}}/programme/R2/S4
-HTTP 204
-
+HTTP *
+[Asserts]
+status >= 204
+status <= 404

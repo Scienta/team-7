@@ -99,7 +99,10 @@ public class ProgrammeService {
     @Transactional
     public void clear(String room, String slot) {
         requireCell(room, slot);
-        programme.clear(room, slot);
+        if (!programme.clear(room, slot)) {
+            // Nothing to take out, like an empty cell's GET (and removing someone who isn't a co-speaker).
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "nothing scheduled in " + room + " " + slot);
+        }
         log.info("programme " + room + " " + slot + " cleared");
     }
 

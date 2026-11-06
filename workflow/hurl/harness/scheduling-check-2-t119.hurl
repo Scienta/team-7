@@ -3,7 +3,9 @@
 # harness accepted; the last is the request it rejected, so it must not answer that again.
 
 DELETE {{base_url}}/programme/R3/S2
-HTTP 204
+HTTP *
+[Asserts]
+status < 500
 
 POST {{base_url}}/speakers
 {"name": "Frances Knuth 8e96", "email": "{{run}}-x-aac7aa2677cf@example.test"}
