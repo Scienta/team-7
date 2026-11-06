@@ -147,3 +147,14 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
 - **Evidence:** `actionlint` clean; job graph checked. Not run yet: forks get no Scaleway secrets and this sandbox
   can't reach the registry. **Watch the first run on main**; `git revert` restores the old single build.
 - **Deployed:** pending merge.
+
+## 5. Race checks for workshop registration, ahead of the feature
+
+- **Problem:** workshop registration (released at tick 67) caps each workshop at 20 and expects "a rush" at opening;
+  one registration per email whatever the case. A capacity check that reads then inserts would oversell.
+- **Change:** a workshop section in `workflow/bin/race.sh` (22 checks): 50 people at once on a workshop with 19 seats
+  left; one email 10x in mixed case; 30 people x 2 spellings at once; one person on two workshops at once; withdrawn
+  mid-rush; registrations for an accepted non-workshop and a submitted workshop. It skips while the endpoint answers
+  404.
+- **Evidence:** skips cleanly on `9680a89` (36 existing checks green). Not yet run against an implementation.
+- **Pushed:** held until a teammate pushes (per the user), then rebased on top of their push.

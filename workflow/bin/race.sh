@@ -184,4 +184,89 @@ codes=$(for i in $(seq 1 6); do req POST /talks "{\"title\":\"Own $i\",\"format\
 expect "co-speakers: co-speaker on 3 talks submits 6 at once -> exactly 3 created" 3 "$(count ' 201$' "$codes")"
 expect "co-speakers: own talk list shows only the 3 own talks" 3 "$(get "/speakers/$busy/talks" 'len(t)')"
 
+# ---------------------------------------------------------------- workshop registration
+
+# An accepted workshop: WORKSHOP format, two reviewers, accepted by the committee.
+workshop() {
+    local w
+    w=$(post /talks "{\"title\":\"Race workshop\",\"format\":\"WORKSHOP\",\"level\":\"BEGINNER\",\"speakerId\":$(speaker host)}" | id)
+    req PUT "/talks/$w/ratings/1" '{"score":4}' >/dev/null
+    req PUT "/talks/$w/ratings/2" '{"score":5}' >/dev/null
+    req PUT "/talks/$w/status" '{"status":"ACCEPTED"}' >/dev/null
+    echo "$w"
+}
+register() { req POST "/workshops/$1/registrations" "{\"name\":\"Attendee\",\"email\":\"$2\"}" "${3:-$2}"; }
+regs() { get "/workshops/$1/registrations" "$2"; }
+
+w=$(workshop)
+if [[ $(register "$w" "probe-$run@example.com" | cut -d' ' -f2) == 404 ]]; then
+    echo "skip  workshop registration: POST /workshops/{id}/registrations answers 404 (not implemented yet)"
+else
+    # Registration opens to everyone at once: 50 different people, 20 seats (the probe already took one).
+    codes=$(for i in $(seq 1 50); do register "$w" "rush-$i-$run@example.com" & done; wait)
+    expect "workshops: 50 at once on a workshop with 19 seats left -> 19 created" 19 "$(count ' 201$' "$codes")"
+    expect "workshops: the other 31 rejected with 4xx" 31 "$(count ' 4[0-9][0-9]$' "$codes")"
+    no5xx "workshops: rush" "$codes"
+    expect "workshops: the list has exactly 20" 20 "$(regs "$w" 'len(t)')"
+    expect "workshops: every email on the list once" true "$(regs "$w" 'str(len({r["email"].lower() for r in t}) == len(t)).lower()')"
+    expect "workshops: the list is in registration order (ids ascending)" true \
+        "$(regs "$w" 'str([r["id"] for r in t] == sorted(r["id"] for r in t)).lower()')"
+    expect "workshops: the 201s are exactly the people on the list" \
+        "$( (echo "probe-$run@example.com"; grep ' 201$' <<<"$codes" | cut -d' ' -f1) | sort | paste -sd, -)" \
+        "$(regs "$w" '",".join(sorted(r["email"] for r in t))')"
+
+    # One person double-clicking, typing their email in different cases: registered once.
+    w=$(workshop)
+    email="Ada-$run@Example.com"
+    codes=$(for i in $(seq 1 10); do
+        e=$email
+        ((i % 3 == 0)) && e=$(tr '[:upper:]' '[:lower:]' <<<"$email")
+        ((i % 3 == 1)) && e=$(tr '[:lower:]' '[:upper:]' <<<"$email")
+        register "$w" "$e" &
+    done; wait)
+    expect "workshops: one email (mixed case) 10x at once -> one 201" 1 "$(count ' 201$' "$codes")"
+    expect "workshops: the duplicates rejected with 4xx" 9 "$(count ' 4[0-9][0-9]$' "$codes")"
+    expect "workshops: listed once" 1 "$(regs "$w" 'len(t)')"
+    no5xx "workshops: duplicate email" "$codes"
+
+    # A rush mixing new people and duplicates: still 20 seats, still one per person.
+    w=$(workshop)
+    codes=$(for i in $(seq 1 30); do
+        register "$w" "mix-$i-$run@example.com" &
+        register "$w" "MIX-$i-$run@EXAMPLE.COM" &
+    done; wait)
+    expect "workshops: 30 people x 2 spellings at once -> 20 created" 20 "$(count ' 201$' "$codes")"
+    expect "workshops: list 20, nobody twice" "20 true" \
+        "$(regs "$w" '"%d %s" % (len(t), str(len({r["email"].lower() for r in t}) == len(t)).lower())')"
+    no5xx "workshops: mixed rush" "$codes"
+
+    # The same person on several workshops at once: one seat on each.
+    w1=$(workshop)
+    w2=$(workshop)
+    codes=$(for i in 1 2 3; do register "$w1" "both-$run@example.com" W1 & register "$w2" "both-$run@example.com" W2 & done; wait)
+    expect "workshops: one person on two workshops at once -> one 201 on each" "W1 201,W2 201" \
+        "$(grep ' 201$' <<<"$codes" | sort | paste -sd, -)"
+
+    # Withdrawn while the rush is on: never more than 20, nobody dropped, no 5xx.
+    w=$(workshop)
+    host_of_w=$(get "/talks/$w" 't["speakerId"]')
+    codes=$(for i in $(seq 1 30); do
+        register "$w" "late-$i-$run@example.com" &
+        ((i == 10)) && req POST "/talks/$w/withdraw" "{\"speakerId\":$host_of_w}" WITHDRAW &
+    done; wait)
+    expect "workshops: withdrawn mid-rush -> still at most 20 and the list matches the 201s" true \
+        "$(regs "$w" "str(len(t) <= 20 and len(t) == $(count '@example.com 201$' "$codes")).lower()")"
+    no5xx "workshops: withdraw mid-rush" "$codes"
+
+    # Only accepted workshops take registrations.
+    t=$(talk "$(speaker notworkshop)")
+    req PUT "/talks/$t/ratings/1" '{"score":4}' >/dev/null
+    req PUT "/talks/$t/ratings/2" '{"score":5}' >/dev/null
+    req PUT "/talks/$t/status" '{"status":"ACCEPTED"}' >/dev/null
+    s=$(post /talks "{\"title\":\"Submitted workshop\",\"format\":\"WORKSHOP\",\"level\":\"BEGINNER\",\"speakerId\":$(speaker sub)}" | id)
+    codes=$( (for i in 1 2 3; do register "$t" "x-$i-$run@example.com" NOTWORKSHOP & register "$s" "y-$i-$run@example.com" SUBMITTED & done; wait) )
+    expect "workshops: accepted presentation and submitted workshop -> no registration lands" 0 "$(count ' 2[0-9][0-9]$' "$codes")"
+    no5xx "workshops: not open" "$codes"
+fi
+
 exit $fail
