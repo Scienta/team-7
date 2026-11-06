@@ -33,6 +33,9 @@ STATUSES = {
     "WITHDRAWN": [("withdraw", None)],
 }
 MISSING = 999999999
+# The programme is one global grid that the harness uses too: only touch it on a local service.
+LOCAL = BASE.startswith("http://localhost") or BASE.startswith("http://127.0.0.1")
+CELL = "/programme/R3/S4"  # the long slot, so every format fits; emptied before and after each use
 
 
 def call(method, path, body=None):
@@ -92,6 +95,10 @@ ENDPOINTS = [
     ("POST registration", lambda t, o, x: ("POST", f"/workshops/{t}/registrations",
                                            {"name": "Ada", "email": f"ada-{uuid.uuid4().hex[:12]}@example.com"})),
 ]
+if LOCAL:
+    # the talk id is in the body, not the path, but it's still a talk that exists or doesn't
+    SETUP["PUT programme"] = lambda t, o, x: call("DELETE", CELL)
+    ENDPOINTS.append(("PUT programme", lambda t, o, x: ("PUT", CELL, {"talkId": t})))
 
 
 def main():
@@ -115,8 +122,12 @@ def main():
                 if code >= 500:
                     violations.append(f"{fmt} {status}: {name} -> {code}")
             rows.append((f"{fmt} {status}", row))
+    if LOCAL:
+        call("DELETE", CELL)
     row = []
     for name, make in ENDPOINTS:
+        if name in SETUP:
+            SETUP[name](MISSING, other, other)
         method, path, body = make(MISSING, other, other)
         code, _ = call(method, path, body)
         row.append(code)

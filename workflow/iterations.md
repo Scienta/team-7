@@ -246,3 +246,21 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   `check.sh`: 58 Hurl files + matrix + races green; `compare.sh` equivalent to `c48a6e4`. Also fixed `perf.sh`
   syncing against :8080 whatever it was testing.
 - **Pushed:** `[no deploy]`; goes live with the next deploy.
+
+## 22. Programme scheduling (drip feature `scheduling`)
+
+- **Problem:** new feature at tick 100: accepted talks into a fixed grid (R1–R3 × S1–S5), workshops only in S4,
+  one talk per cell, a talk once, nobody in two rooms of a slot, rules checked only when scheduling, safe under
+  concurrent committee members.
+- **Change:** `PUT`/`GET`/`DELETE /programme/{room}/{slot}` (`ProgrammeController`, `ProgrammeService`,
+  `ProgrammeDao`); table `programme` seeded with the 15 cells, unique index on `talk_id`; a PUT locks the three
+  cells of its slot (`FOR UPDATE`) before checking occupancy and people. Decisions in
+  `workflow/decisions/scheduling.md` (409 for an existing talk that can't go there, 404 only for what doesn't exist,
+  empty cell = 200 with `talkId: null`, DELETE 204). Gate: 6 `scheduling-*.hurl`, race checks, a matrix column,
+  all local-only (the grid is shared with the harness in production; new rule in `.claude/rules/testing.md`).
+- **Evidence:** `SchedulingSpecTest` 26 black-box tests (spec-test-writer recipe, written without `src/main`); it
+  caught a real bug before any push: `getLong` + `wasNull` after another column made every empty cell look taken.
+  JUnit 111 green; `check.sh` ALL GREEN on :8080 and the linux/amd64 image (matrix 21 × 13 consistent; races:
+  10 talks → 1 cell, 1 talk → 5 slots, 1 speaker → 3 rooms, each exactly one 200, no 5xx); `compare.sh`
+  EQUIVALENT to `c48a6e4`.
+- **Pushed:** see below.

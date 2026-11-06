@@ -269,4 +269,46 @@ else
     no5xx "workshops: not open" "$codes"
 fi
 
+# ---------------------------------------------------------------- scheduling (local only)
+
+# The programme is one global grid that the harness uses too: never race on it in production.
+if [[ $base == http://localhost* || $base == http://127.0.0.1* ]]; then
+    clear_programme() { for r in R1 R2 R3; do for s in S1 S2 S3 S4 S5; do req DELETE "/programme/$r/$s" >/dev/null; done; done; }
+    accepted() { # an accepted talk of the given main speaker
+        local t
+        t=$(post /talks "{\"title\":\"Race prog\",\"format\":\"PRESENTATION\",\"level\":\"BEGINNER\",\"speakerId\":$1}" | id)
+        req PUT "/talks/$t/ratings/1" '{"score":4}' >/dev/null
+        req PUT "/talks/$t/ratings/2" '{"score":4}' >/dev/null
+        req PUT "/talks/$t/status" '{"status":"ACCEPTED"}' >/dev/null
+        echo "$t"
+    }
+    clear_programme
+
+    # Ten committee members, ten talks, one cell: one wins.
+    talks=(); for i in $(seq 1 10); do talks+=("$(accepted "$(speaker prog$i)")"); done
+    codes=$(for t in "${talks[@]}"; do req PUT /programme/R1/S1 "{\"talkId\":$t}" "$t" & done; wait)
+    expect "scheduling: 10 talks into one cell at once -> one 200" 1 "$(count ' 200$' "$codes")"
+    expect "scheduling: the cell holds the winner" "$(grep ' 200$' <<<"$codes" | cut -d' ' -f1)" "$(get /programme/R1/S1 't["talkId"]')"
+    no5xx "scheduling: one cell" "$codes"
+    clear_programme
+
+    # One talk into five cells at once (five different slots, so five different locks): it's placed once.
+    t=$(accepted "$(speaker once)")
+    codes=$(for s in S1 S2 S3 S4 S5; do req PUT "/programme/R2/$s" "{\"talkId\":$t}" "$s" & done; wait)
+    expect "scheduling: one talk into 5 slots at once -> one 200" 1 "$(count ' 200$' "$codes")"
+    placed=0; for s in S1 S2 S3 S4 S5; do [[ $(get "/programme/R2/$s" 't["talkId"]') == "$t" ]] && placed=$((placed + 1)); done
+    expect "scheduling: on the programme once" 1 "$placed"
+    no5xx "scheduling: one talk, five cells" "$codes"
+    clear_programme
+
+    # One speaker's three talks into the three rooms of one slot at once: one speaks, the others are refused.
+    main=$(speaker busy)
+    a=$(accepted "$main"); b=$(accepted "$main"); c=$(accepted "$main")
+    codes=$( (req PUT /programme/R1/S2 "{\"talkId\":$a}" R1 & req PUT /programme/R2/S2 "{\"talkId\":$b}" R2 &
+              req PUT /programme/R3/S2 "{\"talkId\":$c}" R3 & wait) )
+    expect "scheduling: one speaker into 3 rooms of a slot at once -> one 200" 1 "$(count ' 200$' "$codes")"
+    no5xx "scheduling: speaker clash" "$codes"
+    clear_programme
+fi
+
 exit $fail

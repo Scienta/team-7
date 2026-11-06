@@ -65,3 +65,11 @@ Every iteration, to the user and as an entry in `workflow/iterations.md`:
 - Spec silent on a status code: assert the range (`status >= 400`, `status < 500`); otherwise pin it.
 - Specs live in `specs/<feature>.md` (fetched from the harness). A feature request isn't a spec: write the edge
   cases down before implementing.
+
+## Shared state in production
+
+- The programme (`/programme/{room}/{slot}`) is one global grid that the harness's checks use too. Never write to
+  it in production: a cell we occupy, even for a moment, can fail a harness check. `check.sh`, `consistency.py` and
+  `race.sh` touch it only when the base URL is local; keep it that way, and name Hurl files that write to it
+  `scheduling-*.hurl` so `check.sh` skips them elsewhere. Locally, each such file owns its own cells and clears
+  them first and last (Hurl runs files in parallel).

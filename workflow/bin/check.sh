@@ -22,6 +22,17 @@ else
     race=true
 fi
 
+# The programme (scheduling) is one global grid of 15 cells, and in production the harness's checks use it too:
+# a cell our suite occupies, even for a moment, can make a harness check fail. So whatever writes to the
+# programme runs only against a local service (scheduling-*.hurl here, and the scheduling parts of
+# consistency.py and race.sh, which check the base URL themselves).
+if [[ $base != http://localhost* && $base != http://127.0.0.1* ]]; then
+    kept=()
+    for f in "${files[@]}"; do [[ $(basename "$f") == scheduling-* ]] || kept+=("$f"); done
+    files=("${kept[@]}")
+    echo "(not local: skipping the scheduling suites, they would write to the shared programme)"
+fi
+
 rc=0
 hurl --test --jobs 4 --variable "base_url=$base" --variable "run=$(date +%s)$RANDOM" \
     --report-html .local/hurl-report "${files[@]}" || rc=1

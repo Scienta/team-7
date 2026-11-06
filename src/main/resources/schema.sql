@@ -71,3 +71,18 @@ CREATE TABLE IF NOT EXISTS registration (
     email   TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_registration_email ON registration (talk_id, lower(email));
+
+-- 2026-11 programme scheduling: the fixed grid of 3 rooms x 5 slots, one row per cell, talk_id NULL when empty.
+-- A talk is on the programme at most once (unique index; NULLs don't collide). Scheduling locks the cells of its slot.
+CREATE TABLE IF NOT EXISTS programme (
+    room    TEXT NOT NULL,
+    slot    TEXT NOT NULL,
+    talk_id INTEGER,
+    PRIMARY KEY (room, slot)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_programme_talk ON programme (talk_id);
+INSERT INTO programme (room, slot) VALUES
+    ('R1', 'S1'), ('R1', 'S2'), ('R1', 'S3'), ('R1', 'S4'), ('R1', 'S5'),
+    ('R2', 'S1'), ('R2', 'S2'), ('R2', 'S3'), ('R2', 'S4'), ('R2', 'S5'),
+    ('R3', 'S1'), ('R3', 'S2'), ('R3', 'S3'), ('R3', 'S4'), ('R3', 'S5')
+    ON CONFLICT DO NOTHING;
