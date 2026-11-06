@@ -63,9 +63,9 @@ container to a new revision, and requests can fail while it does (the harness co
 what doesn't need to be live. A push to `main` deploys after the test suite passes, unless its last commit's
 message says otherwise (for a merged PR: its title, which ends up in the merge commit):
 
-- **`[no deploy]`**: docs, `workflow/`, `.claude/`, specs, test-only and tooling changes. No job runs: no tests,
-  no image, no rollout, no Actions minutes. It goes live with the next push that deploys, whose tests cover it.
-  So code that would change the service's behaviour doesn't belong in a `[no deploy]` commit.
+- **`[no deploy]`**: docs, `workflow/`, `.claude/`, specs, test-only and tooling changes. The tests still run
+  (so `main` stays checked), but no image is built and nothing rolls out. It goes live with the next push that
+  deploys. So code that would change the service's behaviour doesn't belong in a `[no deploy]` commit.
 - **(no tag)**: fixes and features. Tests, then image, then rollout (`.github/workflows/deploy.yml`).
 - **`[fast]`**: a fix to a check that's **losing points right now**. Skips the test gate and deploys as soon as the
   image is built, without re-tagging. Still checked: the Docker build compiles the code, and the rollout rolls
@@ -73,7 +73,7 @@ message says otherwise (for a merged PR: its title, which ends up in the merge c
   `workflow/bin/check.sh`) and say so in the commit. The next normal push tests everything again, the fast commit
   included, and won't deploy if a test fails. Never for features or refactors.
 
-Only the last commit of a push counts. `[no deploy]` wins over `[fast]`. Running the deploy workflow by hand
+Only the last commit of a push counts. `[no deploy]` wins over `[fast]` (the tests run, nothing deploys). Running the deploy workflow by hand
 always deploys (check `fast` for the fast lane).
 
 ## Platform gotchas
