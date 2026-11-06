@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Our own gate: the published examples, our edge-case Hurl suites, replays of the harness's own transcripts
-# (workflow/hurl/harness/, from transcripts.py), the consistency matrix (consistency.py) and the concurrency checks.
+# (workflow/hurl/harness/, from transcripts.py), the consistency matrix (consistency.py), the averaging rules
+# (ratings_avg.py) and the concurrency checks.
 # Each suite file covers one rule, so one failure doesn't hide the others.
 #
 # Usage: workflow/bin/check.sh [base-url] [hurl files...]
@@ -51,6 +52,10 @@ if $race; then
     echo
     python3 workflow/bin/consistency.py "$base" | tail -1 || rc=1
     [[ ${PIPESTATUS[0]} == 0 ]] || { python3 workflow/bin/consistency.py "$base" | grep FAIL | head -20; rc=1; }
+    echo
+    # the averaging rules, original or ratings-cr (required once ratings-cr is claimed on the harness)
+    python3 workflow/bin/ratings_avg.py "$base" | tail -1 || rc=1
+    [[ ${PIPESTATUS[0]} == 0 ]] || { python3 workflow/bin/ratings_avg.py "$base" | grep FAIL | head -10; rc=1; }
     echo
     workflow/bin/race.sh "$base" || rc=1
 fi

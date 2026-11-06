@@ -27,6 +27,9 @@ def mix(key):
     return {k: round(v / n, 3) for k, v in sorted(c.items())}
 rc = [x["ratingCount"] for x in t]
 hist = collections.Counter(min(r, 20) for r in rc)
+by_status = collections.defaultdict(collections.Counter)
+for x in t:
+    by_status[x["status"]][min(x["ratingCount"], 20)] += 1
 print(json.dumps({
     "talks": len(t),
     "speakers": len({x["speakerId"] for x in t}),
@@ -36,6 +39,9 @@ print(json.dumps({
     "ratingsPerRatedTalk": round(sum(rc) / max(1, sum(1 for r in rc if r)), 2),
     "maxRatings": max(rc or [0]),
     "ratingHistogram": {str(k): round(v / n, 4) for k, v in sorted(hist.items())},
+    # ratings per talk depend on the status (an accepted talk has at least two reviewers), so per status too
+    "ratingHistogramByStatus": {s: {str(k): round(v / sum(c.values()), 4) for k, v in sorted(c.items())}
+                                for s, c in by_status.items()},
     "acceptedWorkshops": sum(1 for x in t if x["format"] == "WORKSHOP" and x["status"] == "ACCEPTED"),
 }))
 EOF
@@ -91,6 +97,7 @@ def pick(dist):
     return list(dist)[-1]
 durations = {"LIGHTNING_10": 10, "LIGHTNING_20": 20, "PRESENTATION": 45, "WORKSHOP": 120}
 hist = {int(k): v for k, v in p["ratingHistogram"].items()}
+hist_by_status = {s: {int(k): v for k, v in h.items()} for s, h in p.get("ratingHistogramByStatus", {}).items()}
 print("BEGIN;")
 print("TRUNCATE rating, talk_co_speaker, registration, talk, speaker RESTART IDENTITY;")
 # The programme is a fixed grid created at start-up: empty its cells, keep the rows.
@@ -106,7 +113,7 @@ for talk in range(1, n + 1):
             per_speaker[s] = per_speaker.get(s, 0) + 1
             break
     fmt, lvl, status = pick(p["format"]), pick(p["level"]), pick(p["status"])
-    count = pick(hist)
+    count = pick(hist_by_status.get(status, hist))
     if status == "ACCEPTED" and count < 2:
         count = 2  # the rules: accepted talks have two reviewers
     rows.append(f"('Seed talk','{fmt}',{durations[fmt]},'{lvl}','{status}',{s},(extract(epoch from now())*1000)::bigint - {n - talk})")
