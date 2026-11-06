@@ -114,3 +114,13 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
 - **Evidence:** `concurrentUpdatesToOneEmailHaveOneWinnerAndNo500` (10 parallel PUTs, one email): without the fix
   3/3 runs failed with a 500, with it 3/3 green.
 - **Deployed:** pending merge.
+
+## 8. Dead and misleading code (backlog R5, part)
+
+- **Problem:** `Utils.MAX_TALKS = 5` (unused; the limit is 3, hard-coded twice), a duration `switch` duplicating
+  `DURATIONS` with a silent 45-minute default, `Utils.today()` in the JVM's time zone, and a README describing Java 8,
+  port 8081, votes and Jenkins.
+- **Change:** one `MAX_TALKS = 3` in `ConferenceService`, durations from `DURATIONS`, `today()` in UTC (the platform
+  runs in UTC, so no visible change there), README run/API/test/deploy sections rewritten.
+- **Evidence:** JUnit 46 green; check.sh ALL GREEN; `/admin/talks.csv` byte-identical to `c8929ce` on 1533 talks.
+- **Deployed:** pending merge.

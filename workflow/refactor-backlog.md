@@ -32,6 +32,9 @@ Baseline 2026-11-06 at `8b4cefa`, 60 VUs, 1500 talks: ~1020 req/s, every endpoin
   `switch` duplicating `DURATIONS` (with a silent 45 default), commented-out code, unused helpers, the stale API and
   run sections of the README. Keep `Utils.roundRating` behaviour for `/admin/stats` (or make it use
   `averageRating` only as a needs-human change). Done when: compare equivalent.
+  Partly done 2026-11-06: `Utils.MAX_TALKS` removed (the limit is `ConferenceService.MAX_TALKS = 3`), the duration
+  `switch` replaced by `DURATIONS`, the README's run/API sections rewritten, `Utils.today()` in UTC. Left:
+  commented-out code and unused helpers.
 - [ ] **R6 refactor: split `ConferenceService`** into speaker, talk, rating and report services; controllers and
   JSON unchanged. Done when: compare equivalent, all tests green.
 - [ ] **R7 refactor: typed responses.** Speaker and rating responses as classes instead of `Map<String,Object>`,
@@ -53,3 +56,4 @@ Baseline 2026-11-06 at `8b4cefa`, 60 VUs, 1500 talks: ~1020 req/s, every endpoin
 
 <!-- One line per iteration: date time, item, done/blocked, commit, the numbers. -->
 - 2026-11-06, R3, done: `RequestLoggingFilter` (logger `access`), e.g. `POST /speakers/ 201 12ms`; check.sh ALL GREEN.
+- 2026-11-06, R5, partly: dead `MAX_TALKS`, duration `switch`, stale README sections; check.sh ALL GREEN, CSV identical.

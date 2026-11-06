@@ -14,12 +14,13 @@ public class Utils {
 
     public static final String DB_DATE_TIME = "yyyy-MM-dd HH:mm:ss";
 
-    public static final int MAX_TALKS = 5;
-
     private static final TimeZone UTC = TimeZone.getTimeZone("UTC");
 
+    // the UTC day, like every other date here (it was the JVM's time zone, which is only UTC on the platform)
     public static String today() {
-        return new SimpleDateFormat("dd.MM.yyyy").format(new Date());
+        SimpleDateFormat f = new SimpleDateFormat("dd.MM.yyyy");
+        f.setTimeZone(UTC);
+        return f.format(new Date());
     }
 
     public static String now() {
