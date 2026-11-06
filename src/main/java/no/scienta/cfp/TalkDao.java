@@ -13,10 +13,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class TalkDao {
 
     // Each talk with its rating count and total, so a list is one query instead of one per talk.
+    // and its co-speakers in the order they were added, so reading talks takes one connection, not two.
     private static final String SELECT = "SELECT t.id, t.title, t.format, t.duration, t.level, t.status, t.speaker_id, "
-            + "t.submitted_at, COALESCE(r.cnt, 0) AS rating_count, COALESCE(r.total, 0) AS rating_total FROM talk t "
+            + "t.submitted_at, COALESCE(r.cnt, 0) AS rating_count, COALESCE(r.total, 0) AS rating_total, "
+            + "c.ids AS co_speaker_ids FROM talk t "
             + "LEFT JOIN (SELECT talk_id, COUNT(*) AS cnt, SUM(score) AS total FROM rating GROUP BY talk_id) r "
-            + "ON r.talk_id = t.id";
+            + "ON r.talk_id = t.id "
+            + "LEFT JOIN (SELECT talk_id, array_agg(speaker_id ORDER BY seq) AS ids FROM talk_co_speaker GROUP BY talk_id) c "
+            + "ON c.talk_id = t.id";
 
     private final JdbcTemplate jdbc;
 
@@ -35,6 +39,12 @@ public class TalkDao {
         t.submittedOn = Utils.legacyDate(millis);
         t.ratingCount = rs.getInt("rating_count");
         t.averageRating = average(rs.getLong("rating_total"), t.ratingCount);
+        java.sql.Array coSpeakers = rs.getArray("co_speaker_ids");
+        if (coSpeakers != null) {
+            for (Object id : (Object[]) coSpeakers.getArray()) {
+                t.coSpeakerIds.add(((Number) id).longValue());
+            }
+        }
         return t;
     };
 

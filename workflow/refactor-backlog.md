@@ -12,11 +12,20 @@ Baseline 2026-11-06 at `8b4cefa`, 60 VUs, 1500 talks: ~1020 req/s, every endpoin
 
 ## Open
 
-- [ ] **R1 perf: find where requests wait.** Measure before changing: Hikari pool metrics (active/pending, wait
-  time) under `perf.sh`, Tomcat threads, which requests hold a connection longest (`@Transactional` around
-  `submitTalk` holds the speaker row lock and a connection across 5 queries and the notification). Write the
-  finding in this item, then fix the biggest cause. Pool max stays 5 (platform cap).
-  Done when: p95 of the cheap endpoints (`GET /speakers/{id}`, `GET /talks/{id}`) clearly improves, compare equivalent.
+- [x] **R1 perf: find where requests wait.** Finding (2026-11-06, 60 users, production-shaped data): the pool of 5 is
+  saturated all the time, up to 66 requests waiting; over a run requests spent 802 s waiting for a connection and
+  143 s using one. `GET /speakers/{id}` does 2 ms of work and waits ~100 ms. Per request: the full talk lists hold
+  a connection ~6-7 ms (10x anything else, ~80 % of all connection time in the load mix), and every talk read took
+  2 connections (talks, then co-speakers in a second query). Fixed the second part: co-speakers come in the talk
+  query (`array_agg`), 1 connection per talk read. Median of 3 runs: 959 -> 1024 req/s, `GET /speakers/{id}` p95
+  110 -> 91 ms, `GET /talks/{id}` 128 -> ~105 ms; list p95 unchanged within noise. Compare equivalent.
+  Left: the lists' hold time itself (serving ~4000 talks per request) - see R8.
+- [ ] **R8 perf: the full talk lists dominate connection time.** ~6 ms held per `GET /talks` at ~4000 talks and
+  growing with the data. Options: build the JSON from one SQL query (`json_agg`), page or cache the list, or keep
+  rating/co-speaker aggregates on the talk row (a schema change: needs-human).
+- [ ] **R9 tooling: list p95 is too noisy for one run.** On the same code, `GET /talks` p95 varied 378-594 ms across
+  runs and the old build flagged itself REGRESSED. `perf.sh` should take the median of 3 runs (or compare
+  throughput and the cheap endpoints, which are stable) before calling a regression.
 - [ ] **R2 perf: fewer queries per write.** `submitTalk`: exists + lock + insert + speaker lookup + read-back;
   `rate`: exists + upsert; `registerSpeaker`: emailTaken + insert (the unique index already decides). Cut round
   trips without weakening the 3-talk limit or the upsert (race.sh and load.js invariants must stay green).

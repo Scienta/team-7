@@ -166,7 +166,6 @@ public class ConferenceService {
         if (talk == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "talk not found");
         }
-        talk.coSpeakerIds = coSpeakerDao.findByTalk(talk.id);
         return talk;
     }
 
@@ -175,7 +174,6 @@ public class ConferenceService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "speaker not found");
         }
         List<TalkDto> talks = talkDao.findBySpeaker(speakerId);
-        addCoSpeakers(talks);
         return talks;
     }
 
@@ -184,7 +182,6 @@ public class ConferenceService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sort must be 'rating'");
         }
         List<TalkDto> talks = speakerId == null ? talkDao.findAll() : talkDao.findBySpeaker(speakerId);
-        addCoSpeakers(talks);
         if ("rating".equals(sort)) {
             List<TalkDto> rated = new ArrayList<>();
             List<TalkDto> unrated = new ArrayList<>();
@@ -263,17 +260,6 @@ public class ConferenceService {
         }
         log.info("talk " + talkId + " withdrawn by speaker " + speakerId);
         return getTalk(talkId);
-    }
-
-    private void addCoSpeakers(List<TalkDto> talks) {
-        List<Long> ids = new ArrayList<>();
-        for (TalkDto t : talks) {
-            ids.add(t.id);
-        }
-        Map<Long, List<Long>> coSpeakers = coSpeakerDao.findByTalks(ids);
-        for (TalkDto t : talks) {
-            t.coSpeakerIds = coSpeakers.getOrDefault(t.id, new ArrayList<>());
-        }
     }
 
     // ---------------------------------------------------------------- co-speakers

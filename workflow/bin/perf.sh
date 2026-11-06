@@ -35,7 +35,7 @@ EOF
 
 if $local; then
     # Production's shape (workflow/bin/dbdrift.sh --sync), so the load hits realistic data and runs are comparable.
-    workflow/bin/dbdrift.sh --sync >/dev/null || { echo "couldn't rebuild local data in production's shape" >&2; exit 1; }
+    LOCAL="$base" workflow/bin/dbdrift.sh --sync >/dev/null || { echo "couldn't rebuild local data in production's shape" >&2; exit 1; }
     echo "local data: $(docker compose exec -T postgres psql -U cfp -tAc 'SELECT COUNT(*) FROM talk') talks in production's shape"
 fi
 

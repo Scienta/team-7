@@ -233,3 +233,16 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   a manual run always deploys. `AGENTS.md` now says which changes deploy (fixes, features) and which don't.
 - **Evidence:** `actionlint` clean; job conditions checked for normal, `[fast]`, `[no deploy]`, both, and manual runs.
 - **Deployed:** this commit is itself `[no deploy]`.
+
+## 10. Every talk read took two database connections (R1)
+
+- **Problem:** under load (60 users) the pool of 5 was always full, up to 66 requests waiting; requests spent 5.6x
+  longer waiting for a connection than using one, so `GET /speakers/{id}` (2 ms of work) took ~100 ms. Every talk
+  read took 2 connections: the talks, then their co-speakers in a separate query.
+- **Change:** `TalkDao` reads co-speakers in the talk query (`array_agg ... ORDER BY seq`); the separate lookups in
+  `ConferenceService` are gone. 2 files, +12/-14.
+- **Evidence:** 1 connection per talk read instead of 2; `GET /talks` holds it 6.06 ms instead of 7.07 ms (same
+  data). Median of 3 load runs: 959 -> 1024 req/s, cheap endpoints' p95 -17 %, lists unchanged within noise.
+  `check.sh`: 58 Hurl files + matrix + races green; `compare.sh` equivalent to `c48a6e4`. Also fixed `perf.sh`
+  syncing against :8080 whatever it was testing.
+- **Pushed:** `[no deploy]`; goes live with the next deploy.
