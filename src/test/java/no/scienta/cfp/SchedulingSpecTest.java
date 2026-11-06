@@ -246,11 +246,13 @@ class SchedulingSpecTest {
     }
 
     @Test
-    @DisplayName("R5: a talk already on the programme is 409 also when put again into the same cell")
-    void talkAlreadyScheduledIs409InSameCell() throws Exception {
+    @DisplayName("R5: putting a talk again into the cell it's already in changes nothing (200)")
+    void puttingATalkWhereItIsIsIdempotent() throws Exception {
         long talk = acceptedTalk("PRESENTATION");
         assertEquals(200, send("PUT", cell("R1", "S1"), "{\"talkId\":" + talk + "}").statusCode());
-        assertRejected(409, "R1", "S1", talk);
+        HttpResponse<String> again = send("PUT", cell("R1", "S1"), "{\"talkId\":" + talk + "}");
+        assertEquals(200, again.statusCode(), again.body());
+        assertEntry(again.body(), "R1", "S1", "09:00", "10:00", String.valueOf(talk));
         assertEquals(String.valueOf(talk), field(send("GET", cell("R1", "S1"), null).body(), "talkId"));
     }
 

@@ -23,7 +23,8 @@ Checked in this order; the first that applies wins, and a rejected request chang
 | No talk with that id | `400` (harness scheduling/check-1 rejected 404: the room and slot exist, the body is wrong) |
 | The talk isn't `ACCEPTED` right now (incl. `WITHDRAWN` after acceptance) | `409` |
 | A `WORKSHOP` in a slot other than `S4` | `409` |
-| The talk is already on the programme, anywhere, including this same room and slot | `409` **(risk: a repeat of the same placement could be an idempotent 200)** |
+| The talk is already in this same room and slot | `200` with the `Entry`, nothing changes (idempotent; was `409`, the harness's scheduling/check-1 failed on exactly that repeat, tick 126) |
+| The talk is already on the programme in another room or slot | `409` |
 | Another talk is already in this room and slot | `409` |
 | A person (main speaker or co-speaker) of this talk is also a person of a talk already in the same slot, in any room | `409` |
 | Otherwise | `200` with the `Entry` |

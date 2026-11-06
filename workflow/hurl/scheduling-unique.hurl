@@ -65,14 +65,16 @@ PUT {{base_url}}/programme/R1/S3
 { "talkId": {{second}} }
 HTTP 409
 
-# the same talk again, elsewhere and in the same cell
+# the same talk again: elsewhere is 409, in the same cell it changes nothing (200)
 PUT {{base_url}}/programme/R3/S5
 { "talkId": {{first}} }
 HTTP 409
 
 PUT {{base_url}}/programme/R1/S3
 { "talkId": {{first}} }
-HTTP 409
+HTTP 200
+[Asserts]
+jsonpath "$.talkId" == {{first}}
 
 GET {{base_url}}/programme/R1/S3
 HTTP 200

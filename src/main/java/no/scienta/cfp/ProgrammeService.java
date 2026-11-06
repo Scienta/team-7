@@ -63,6 +63,10 @@ public class ProgrammeService {
         }
 
         Map<String, Long> cells = programme.lockSlot(slot);
+        if (Long.valueOf(talkId).equals(cells.get(room))) {
+            // Putting a talk where it already is changes nothing (like adding someone who already is a co-speaker).
+            return entry(room, slot, talkId);
+        }
         if (programme.scheduled(talkId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "the talk is already on the programme; take it out first");
         }
