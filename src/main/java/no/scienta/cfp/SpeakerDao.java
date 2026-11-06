@@ -47,6 +47,12 @@ public class SpeakerDao {
         return jdbc.queryForObject("SELECT COUNT(*) FROM speaker", Integer.class);
     }
 
+    /** Registered speakers who are the main speaker of at least one talk. One query (it was one per speaker). */
+    public int countWithTalks() {
+        return jdbc.queryForObject(
+                "SELECT COUNT(*) FROM speaker s WHERE EXISTS (SELECT 1 FROM talk t WHERE t.speaker_id = s.id)", Integer.class);
+    }
+
     // Used by the old admin page to look people up.
     public List<Map<String, Object>> search(String name) {
         // bound as a parameter, with LIKE's wildcards escaped, so the search text is only ever matched literally

@@ -124,6 +124,24 @@ class WireFormatTest {
     }
 
     @Test
+    void statsCountEachSpeakerWithTalksOnce() throws Exception {
+        int before = speakersWithTalks();
+        String busy = newSpeaker();
+        newSpeaker();  // no talks: doesn't count
+        for (int i = 0; i < 2; i++) {
+            assertEquals(201, send("POST", "/talks", "{\"title\":\"Stat " + i
+                    + "\",\"format\":\"PRESENTATION\",\"level\":\"BEGINNER\",\"speakerId\":" + busy + "}").statusCode());
+        }
+        assertEquals(before + 1, speakersWithTalks());
+    }
+
+    private int speakersWithTalks() throws Exception {
+        HttpResponse<String> res = send("GET", "/admin/stats", null);
+        assertEquals(200, res.statusCode(), res.body());
+        return Integer.parseInt(res.body().replaceAll(".*\"speakersWithTalks\":(\\d+).*", "$1"));
+    }
+
+    @Test
     void infoReportsTheRunningVersions() throws Exception {
         HttpResponse<String> info = send("GET", "/actuator/info", null);
         assertEquals(200, info.statusCode(), info.body());

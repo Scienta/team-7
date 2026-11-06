@@ -74,3 +74,14 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
 - **Evidence:** 36/36 green, 6 runs locally on `6ff8b1d` and 4 runs against the deployed service. No race found: the
   locking holds.
 - **Deployed:** tooling only.
+
+## 7. `/admin/stats` ran one query per speaker
+
+- **Problem:** `talks-list-speed.hurl` failed against the deployed service: `GET /admin/stats` took 2.58 / 2.69 /
+  2.96 s (budget 1 s), growing with data. `speakersWithTalks` looked up each of the 1276 speakers with talks one by
+  one (`speakerDao.findById` in the loop).
+- **Change:** one `COUNT(*) … WHERE EXISTS` query, `SpeakerDao.countWithTalks`; the loop no longer touches the
+  database. 2 files, +7/-5; `WireFormatTest.statsCountEachSpeakerWithTalksOnce`.
+- **Evidence:** JUnit 53 green; `check.sh` ALL GREEN locally; `compare.sh`: EQUIVALENT to `841f28e` on 31 requests,
+  `/admin/stats` included.
+- **Pushed:** see below.
