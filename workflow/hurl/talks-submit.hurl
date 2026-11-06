@@ -1,5 +1,5 @@
 # Talks: formats decide the duration, SUBMITTED, exact timestamp formats, read back, speaker's list.
-# Spec: workflow/specs/talks.md
+# Spec: specs/talks.md
 
 POST {{base_url}}/speakers
 {

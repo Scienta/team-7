@@ -1,6 +1,6 @@
 # Gap analysis: base features vs. code
 
-2026-11-06, commit `01545b0`. Specs in `workflow/specs/`. Method: read the code against each spec line,
+2026-11-06, commit `01545b0`. Specs in `specs/`. Method: read the code against each spec line,
 then probed the deployed service with curl. "Verified" = observed on the live service.
 
 Harness at the time: every base check OK (speakers 4/4, talks 6/6, ratings 5/5), tick -999994 (pre-game).

@@ -1,5 +1,5 @@
 # Speakers: read back exactly as registered, optional bio, trailing slashes, unknown ids.
-# Spec: workflow/specs/speakers.md
+# Spec: specs/speakers.md
 
 POST {{base_url}}/speakers/
 {

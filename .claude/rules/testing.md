@@ -1,43 +1,40 @@
-# Testing and feedback loop
+# Testing, feedback and pushing
 
-Run these before saying a change works. Paste the summary lines as evidence; never claim "done" without them.
+`origin/main` is the only code that matters, and teammates push to it too. Work in small slices: one problem per
+commit, gate it, push it right away (no waiting for earlier deploys), verify the deploy in the background.
 
-- `workflow/bin/local.sh up`: builds (no tests) and (re)starts the app on JDK 11 with the Compose Postgres,
-  waits for `/health`. Always JDK 11: newer JDKs format `ratedAtDisplay` differently than the deployed image.
-  `local.sh logs` tails `.local/app.log`.
-- `workflow/bin/local.sh image`: deploy rehearsal before pushing. Builds the root `Dockerfile` as `deploy.yml`
-  does (linux/amd64, `GIT_SHA`), runs it on :8081, requires `/health` to report that SHA. Then `check.sh http://localhost:8081`.
-  Do this before any push that touches `Dockerfile`, `pom.xml` or `schema.sql`.
-- `workflow/bin/check.sh [base-url]`: published `examples/*.hurl` + our `workflow/hurl/*.hurl` + the parallel
-  checks in `workflow/bin/race.sh`. Default is local; pass `https://fagsem-h2026-team-7.scienta.cloud` after a deploy.
-  `check.sh <base-url> <file.hurl>` runs one suite.
-- `./mvnw package` (with `JAVA_HOME=$(/usr/libexec/java_home -v 11)`): JUnit tests, needs Docker.
-- `workflow/bin/feedback.sh`: harness score, every check's status, what changed since the last run, and the
-  latest timeline entry (failing request + transcript) for each non-OK check. Rate-limited: don't loop it faster
-  than once a minute.
-- `workflow/bin/watch.sh [seconds]`: run it in the background for the whole session. It exits when anything on the
-  harness changes (a check's status, a feature released or claimed, the service down); then run `feedback.sh`,
-  tell the user what changed, and start the watcher again.
+## The gate (seconds to a couple of minutes, no local JDK needed)
 
-## Every change, in this order
+1. `git fetch` and build on top of `origin/main`.
+2. `workflow/bin/local.sh up`: builds the working tree with the root `Dockerfile` (the deployed JDK) and runs it on
+   :8080 against the Compose Postgres. `local.sh logs` follows its log.
+3. `workflow/bin/check.sh`: published `examples/*.hurl` + our `workflow/hurl/*.hurl` + the parallel checks in
+   `workflow/bin/race.sh`. Must end with `ALL GREEN`. `check.sh <url> <file.hurl>` runs one suite.
+4. `workflow/bin/compare.sh`: runs `HEAD` on :8082 beside the working tree and diffs 31 reads and rejected writes.
+   `EQUIVALENT` for refactors and perf work; for a fix, the only differences are the intended ones.
+5. Perf work: `workflow/bin/perf.sh` (k6, 60 users, 1500 talks) against `workflow/perf/baseline.json`.
+6. Changed `Dockerfile`, `pom.xml` or `schema.sql`: also `local.sh image` (linux/amd64, like `deploy.yml`) and
+   `check.sh http://localhost:8081`.
 
-1. `feedback.sh` before starting: know what the harness says about the deployed code now.
-2. A test that fails first: a Hurl suite in `workflow/hurl/` for behaviour, JUnit for units and races.
-3. `./mvnw package` and `local.sh up` + `check.sh`, all green. Paste the summary lines.
-4. Changed `Dockerfile`, `pom.xml` or `schema.sql`? Also `local.sh image` + `check.sh http://localhost:8081`.
-5. After the person deploys: `check.sh https://fagsem-h2026-team-7.scienta.cloud`, then `feedback.sh` (and again a
-   tick or two later) to confirm nothing went red.
+JUnit runs in CI after each deploy (`tests` job in `deploy.yml`, not a gate). Check that run after pushing.
 
-Performance is behaviour too: list endpoints have a `duration` budget in `workflow/hurl/talks-list-speed.hurl`.
-Changing how talks are read? Compare responses with the previous build on the same data (old build on :8081 via
-`local.sh image` from the old commit, new on :8080) before trusting a refactor.
+## After pushing
+
+- `gh run watch <id> --exit-status` in the background, then `check.sh https://fagsem-h2026-team-7.scienta.cloud`
+  (or the suite you touched) and `workflow/bin/feedback.sh`.
+- `workflow/bin/watch.sh [seconds]` runs in the background all session and exits when anything on the harness
+  changes (a check, a feature released or claimed, the service down): run `feedback.sh`, tell the user, restart it.
+
+## Reporting
+
+Every iteration, to the user and as an entry in `workflow/iterations.md`:
+**Problem** (what was wrong, with the number or request that shows it), **Change** (files, lines), **Evidence**
+(gate results, before/after), **Pushed** (commit, deploy result, what the deployed service shows).
 
 ## Writing Hurl suites
 
-- One file per rule (`workflow/hurl/<feature>-<rule>.hurl`), so one failure doesn't hide the others; Hurl stops a
-  file at its first failing request.
-- Fresh data per run (`{{newUuid}}` in emails), scope assertions to your own speaker/talk so other data doesn't matter.
-- Where the spec is silent on a status code, assert the range (`status >= 400`, `status < 500`) and record the
-  team's decision in the spec notes; where it's ours to pin, pin it.
-- Spec rules come from `workflow/specs/<feature>.md` (fetched from the harness). A feature request isn't a spec:
-  write the edge cases down before implementing.
+- One file per rule (`workflow/hurl/<feature>-<rule>.hurl`): Hurl stops a file at its first failing request.
+- Fresh data per run (`{{newUuid}}`), assertions scoped to your own speaker/talk.
+- Spec silent on a status code: assert the range (`status >= 400`, `status < 500`); otherwise pin it.
+- Specs live in `specs/<feature>.md` (fetched from the harness). A feature request isn't a spec: write the edge
+  cases down before implementing.

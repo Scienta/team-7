@@ -27,6 +27,13 @@ until before=$(state); do
     sleep "$interval"
 done
 fails=0
+# Already broken when we start: say so now, don't wait for a change.
+problems=$(grep -E '^(check |down true)' <<<"$before" | grep -v ' OK$' || true)
+if [[ -n $problems ]]; then
+    echo "harness already reports problems at $(date -u +%H:%M:%SZ):"
+    sed 's/^/  /' <<<"$problems"
+    exit 0
+fi
 echo "watching from $(date -u +%H:%M:%SZ), every ${interval}s" >&2
 while true; do
     sleep "$interval"

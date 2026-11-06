@@ -1,5 +1,5 @@
 # Ratings: rate, re-rate replaces, half-up average, shown wherever a talk is, ratedAtDisplay format.
-# Spec: workflow/specs/ratings.md
+# Spec: specs/ratings.md
 
 POST {{base_url}}/speakers
 {
