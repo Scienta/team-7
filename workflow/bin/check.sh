@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Our own gate: the published examples, our edge-case Hurl suites and the concurrency checks.
+# Our own gate: the published examples, our edge-case Hurl suites, replays of the harness's own transcripts
+# (workflow/hurl/harness/, from transcripts.py), the consistency matrix (consistency.py) and the concurrency checks.
 # Each suite file covers one rule, so one failure doesn't hide the others.
 #
 # Usage: workflow/bin/check.sh [base-url] [hurl files...]
@@ -16,13 +17,18 @@ if (($# > 0)); then
     files=("$@")
     race=false
 else
-    files=(examples/*.hurl workflow/hurl/*.hurl)
+    python3 workflow/bin/transcripts.py >/dev/null 2>&1 || true # pick up new harness transcripts
+    files=(examples/*.hurl workflow/hurl/*.hurl workflow/hurl/harness/*.hurl)
     race=true
 fi
 
 rc=0
-hurl --test --jobs 4 --variable "base_url=$base" --report-html .local/hurl-report "${files[@]}" || rc=1
+hurl --test --jobs 4 --variable "base_url=$base" --variable "run=$(date +%s)$RANDOM" \
+    --report-html .local/hurl-report "${files[@]}" || rc=1
 if $race; then
+    echo
+    python3 workflow/bin/consistency.py "$base" | tail -1 || rc=1
+    [[ ${PIPESTATUS[0]} == 0 ]] || { python3 workflow/bin/consistency.py "$base" | grep FAIL | head -20; rc=1; }
     echo
     workflow/bin/race.sh "$base" || rc=1
 fi

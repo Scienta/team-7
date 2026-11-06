@@ -16,8 +16,11 @@ TEAM=$(cat .fagdag/team)
 mkdir -p .local/feedback
 
 # One line per thing we care about, so a plain diff shows the change.
+# Also keeps the raw feedback in .local/feedback/raw.json; on a change it's saved as a snapshot, so
+# transcripts.py can turn new harness transcripts into regression suites.
 state() {
-    curl -fsS -H "Authorization: Bearer $(cat .fagdag/harness-token)" "$H/api/teams/$TEAM/feedback" | jq -r '
+    curl -fsS -H "Authorization: Bearer $(cat .fagdag/harness-token)" "$H/api/teams/$TEAM/feedback" |
+        tee .local/feedback/raw.json | jq -r '
       "down \(.down.current)\(if .down.reason then " (\(.down.reason))" else "" end)",
       (.features[] | "feature \(.slug) \(if .claimed then "claimed" else "unclaimed" end)"),
       (.features[] as $f | ($f.checks // [])[] | "check \($f.slug)/\(.name) \(.status)")' &&
@@ -52,6 +55,7 @@ while true; do
         echo "harness changed at $(date -u +%H:%M:%SZ):"
         diff <(echo "$before") <(echo "$now") | grep '^[<>]' | sed 's/^</  was:/; s/^>/  now:/'
         echo "$now" >.local/feedback/watch-state.txt
+        cp .local/feedback/raw.json ".local/feedback/$(date -u +%Y%m%dT%H%M%SZ).json"
         exit 0
     fi
 done

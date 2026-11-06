@@ -198,3 +198,28 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
 - **Evidence:** `actionlint` clean; the job conditions walked through for a normal push, a failing test, `[fast]`,
   a manual fast run and a failed build. Not run yet (only `main` deploys).
 - **Deployed:** pending merge; the first `[fast]` push is its real test.
+
+## 7-8. workshop-registration/check-2: 404 for a talk that exists (two steps)
+
+- **Problem:** the harness registered for an accepted presentation (POST, we said 404 "workshop not found"), and,
+  once that was 409, read its list (GET, 404 again). The team's decision was 404 for any non-workshop. Two deploys,
+  because a transcript only shows the first wrong step. Bled ~7 points over ~10 ticks.
+- **Change:** POST for an existing non-workshop talk is 409 (`03e531c`), GET is `200 []` (`699f186`); a talk that
+  doesn't exist stays 404. Tests and the decisions doc updated.
+- **Evidence:** the harness's sequences replayed locally; gate green; check-2 OK from tick 89.
+- **Pushed:** `03e531c`, `699f186` (functional fixes while the check was red).
+
+## 9. Suites that find this kind of error before the harness does
+
+- **Problem:** three harness failures today (co-speakers #1/#2, workshop #2) were the same kind: a talk that exists,
+  of an unusual kind or state, answering 404 on one endpoint; our per-feature suites only covered the combinations
+  someone thought of, and a transcript only shows the first wrong step.
+- **Change:** `consistency.py`: 12 talk endpoints x 4 formats x 5 statuses + a missing talk, each call on a fresh
+  talk; an existing talk never 404 (except harness-confirmed sub-resource 404s), a missing talk always 404, no 5xx.
+  `transcripts.py`: every harness transcript becomes a Hurl replay in `workflow/hurl/harness/` (accepted steps keep
+  their status, the rejected step must change). Both run in `check.sh`; `watch.sh` saves a snapshot on every
+  harness change so new transcripts are harvested.
+- **Evidence:** on the pre-fix `675d69b` the matrix finds 30 violations, including both workshop bugs; on `699f186`
+  it's consistent. The 9 replays fail on exactly the version that had their bug (`b7c525a`: co-speakers;
+  `675d69b`: workshop) and pass now. `check.sh`: 31 Hurl files + matrix + races green.
+- **Pushed:** see git log (tooling; waits for a teammate's push, as the newest commit on main is mine).
