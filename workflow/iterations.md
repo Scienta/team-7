@@ -324,3 +324,17 @@ service showed after. Newest last. Gate: Docker build (JDK 25, as deployed), `ch
   decisions only (it never read `src/main`): all green on the first run. Full suite 144 green (1 skipped, old);
   `check.sh` ALL GREEN (45 Hurl files + race checks) on a fresh database.
 - **Deployed:** pending merge. A person claims, after the deploy and `check.sh` against the live service.
+
+## 28. Ratings change request (`ratings-cr`): trimmed average, 2 decimals, banker's rounding
+
+- **Problem:** change request at tick 167: from 5 ratings on, the average leaves out exactly one highest and one
+  lowest score; 2 decimals with ties to even (3.125 → 3.12, 3.375 → 3.38); ranking uses the new average;
+  `ratingCount` unchanged.
+- **Change:** `TalkDao.SELECT` also aggregates `MIN`/`MAX(score)`; `TalkDao.average` trims at ≥ 5 and divides the
+  exact sum with `BigDecimal` `HALF_EVEN`, scale 2. New `RatingAverageTest` and `ratings-trimmed.hurl`;
+  `ratings-basic.hurl` / `WireFormatTest` 4.3 → 4.25; `ratings-ranking.hurl` order flips (4,5,4 = 4.33 now ahead
+  of 4,4,4,5 = 4.25).
+- **Evidence:** `./mvnw verify` 148 green; `check.sh` ALL GREEN; `compare.sh` vs `fd21c05`: 4 of 31 differ, all talk
+  lists / CSV, only averages and the order they imply. Ratings checks 2 and 4 pending since the release, 1/3/5 OK:
+  normal push (not `[fast]`), claim after it's live.
+- **Pushed:** see below.

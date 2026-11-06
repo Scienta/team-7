@@ -51,27 +51,27 @@ PUT {{base_url}}/talks/{{talk}}/ratings/4
 { "score": 5 }
 HTTP 200
 
-# 4, 4, 4, 5 = 4.25 -> 4.3, everywhere a talk is shown
+# 4, 4, 4, 5 = 4.25 (2 decimals since ratings-cr; fewer than 5 ratings, so nothing is trimmed), everywhere a talk is shown
 GET {{base_url}}/talks/{{talk}}
 HTTP 200
 [Asserts]
 jsonpath "$.ratingCount" == 4
-jsonpath "$.averageRating" == 4.3
+jsonpath "$.averageRating" == 4.25
 
 GET {{base_url}}/speakers/{{speaker}}/talks
 HTTP 200
 [Asserts]
 jsonpath "$[0].ratingCount" == 4
-jsonpath "$[0].averageRating" == 4.3
+jsonpath "$[0].averageRating" == 4.25
 
 GET {{base_url}}/talks?speakerId={{speaker}}
 HTTP 200
 [Asserts]
 jsonpath "$" count == 1
 jsonpath "$[0].ratingCount" == 4
-jsonpath "$[0].averageRating" == 4.3
+jsonpath "$[0].averageRating" == 4.25
 
 GET {{base_url}}/talks?speakerId={{speaker}}&sort=rating
 HTTP 200
 [Asserts]
-jsonpath "$[0].averageRating" == 4.3
+jsonpath "$[0].averageRating" == 4.25

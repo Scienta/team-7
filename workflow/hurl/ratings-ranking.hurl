@@ -1,9 +1,9 @@
-# Ratings: ranking by rounded average, then rating count, then oldest; unrated last.
+# Ratings: ranking by the shown average (2 decimals since ratings-cr), then rating count, then oldest; unrated last.
 # One speaker's talks only, so other data in the database doesn't matter.
-#   t1: 4, 4, 4, 5 = 4.25 -> 4.3, 4 ratings
+#   t1: 4, 4, 4, 5 = 4.25, 4 ratings
 #   t2: unrated
-#   t3: 4, 5, 4 = 4.33 -> 4.3, 3 ratings  (higher raw average than t1, but ties on the shown one)
-# Expected ranking: t1, t3, t2.
+#   t3: 4, 5, 4 = 4.333 -> 4.33, 3 ratings  (with 1 decimal both showed 4.3 and t1 won on count; now t3 is ahead)
+# Expected ranking: t3, t1, t2.
 
 POST {{base_url}}/speakers
 {
@@ -59,11 +59,11 @@ GET {{base_url}}/talks?speakerId={{speaker}}&sort=rating
 HTTP 200
 [Asserts]
 jsonpath "$" count == 3
-jsonpath "$[0].id" == {{t1}}
-jsonpath "$[1].id" == {{t3}}
+jsonpath "$[0].id" == {{t3}}
+jsonpath "$[1].id" == {{t1}}
 jsonpath "$[2].id" == {{t2}}
-jsonpath "$[0].averageRating" == 4.3
-jsonpath "$[1].averageRating" == 4.3
+jsonpath "$[0].averageRating" == 4.33
+jsonpath "$[1].averageRating" == 4.25
 jsonpath "$[2].averageRating" == null
 
 # Unsorted: oldest first

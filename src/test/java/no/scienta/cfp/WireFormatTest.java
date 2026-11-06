@@ -83,9 +83,9 @@ class WireFormatTest {
         send("PUT", "/talks/" + talk + "/ratings/3", "{\"score\":4}");
         send("PUT", "/talks/" + talk + "/ratings/4", "{\"score\":5}");
         String shown = send("GET", "/talks/" + talk, null).body();
-        assertTrue(shown.contains("\"averageRating\":4.3,\"ratingCount\":4"), shown);
+        assertTrue(shown.contains("\"averageRating\":4.25,\"ratingCount\":4"), shown);
         String listed = send("GET", "/talks?sort=rating", null).body();
-        assertTrue(listed.startsWith("[{") && listed.contains("\"averageRating\":4.3"), listed);
+        assertTrue(listed.startsWith("[{") && listed.contains("\"averageRating\":4.25"), listed);
     }
 
     @Test

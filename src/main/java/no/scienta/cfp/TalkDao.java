@@ -15,9 +15,10 @@ public class TalkDao {
     // Each talk with its rating count and total, so a list is one query instead of one per talk.
     // and its co-speakers in the order they were added, so reading talks takes one connection, not two.
     private static final String SELECT = "SELECT t.id, t.title, t.format, t.duration, t.level, t.status, t.speaker_id, "
-            + "t.submitted_at, COALESCE(r.cnt, 0) AS rating_count, COALESCE(r.total, 0) AS rating_total, "
+            + "t.submitted_at, COALESCE(r.cnt, 0) AS rating_count, COALESCE(r.total, 0) AS rating_total, r.lo AS rating_min, r.hi AS rating_max, "
             + "c.ids AS co_speaker_ids FROM talk t "
-            + "LEFT JOIN (SELECT talk_id, COUNT(*) AS cnt, SUM(score) AS total FROM rating GROUP BY talk_id) r "
+            + "LEFT JOIN (SELECT talk_id, COUNT(*) AS cnt, SUM(score) AS total, MIN(score) AS lo, MAX(score) AS hi "
+            + "FROM rating GROUP BY talk_id) r "
             + "ON r.talk_id = t.id "
             + "LEFT JOIN (SELECT talk_id, array_agg(speaker_id ORDER BY seq) AS ids FROM talk_co_speaker GROUP BY talk_id) c "
             + "ON c.talk_id = t.id";
@@ -38,7 +39,7 @@ public class TalkDao {
         t.submittedAt = Utils.legacyTimestamp(millis);
         t.submittedOn = Utils.legacyDate(millis);
         t.ratingCount = rs.getInt("rating_count");
-        t.averageRating = average(rs.getLong("rating_total"), t.ratingCount);
+        t.averageRating = average(rs.getLong("rating_total"), t.ratingCount, rs.getLong("rating_min"), rs.getLong("rating_max"));
         java.sql.Array coSpeakers = rs.getArray("co_speaker_ids");
         if (coSpeakers != null) {
             for (Object id : (Object[]) coSpeakers.getArray()) {
@@ -48,12 +49,25 @@ public class TalkDao {
         return t;
     };
 
-    // 1 decimal, half up (4.25 -> 4.3); null when nobody rated
-    private static Double average(long total, int count) {
+    /** From 5 ratings on, the average leaves out one highest and one lowest score (specs/ratings-cr.md). */
+    static final int TRIM_FROM = 5;
+
+    /**
+     * The shown average: null when nobody rated; from {@link #TRIM_FROM} ratings on without exactly one highest and one
+     * lowest score; rounded to 2 decimals with ties to the even neighbour (3.125 -> 3.12, 3.375 -> 3.38). BigDecimal
+     * divides the exact sum, so a tie is a real tie, not a double's approximation of one.
+     */
+    static Double average(long total, int count, long min, long max) {
         if (count == 0) {
             return null;
         }
-        return BigDecimal.valueOf(total).divide(BigDecimal.valueOf(count), 1, RoundingMode.HALF_UP).doubleValue();
+        long sum = total;
+        int n = count;
+        if (count >= TRIM_FROM) {
+            sum -= min + max;
+            n -= 2;
+        }
+        return BigDecimal.valueOf(sum).divide(BigDecimal.valueOf(n), 2, RoundingMode.HALF_EVEN).doubleValue();
     }
 
     public TalkDao(JdbcTemplate jdbc) {
