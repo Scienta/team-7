@@ -73,7 +73,11 @@ message says otherwise (for a merged PR: its title, which ends up in the merge c
   `workflow/bin/check.sh`) and say so in the commit. The next normal push tests everything again, the fast commit
   included, and won't deploy if a test fails. Never for features or refactors.
 
-Only the last commit of a push counts. `[no deploy]` wins over `[fast]` (the tests run, nothing deploys). Running the deploy workflow by hand
+Only the last commit of a push counts. `[no deploy]` wins over `[fast]` (the tests run, nothing deploys).
+
+After every deploy, the `warmup` job sends the new revision traffic that changes nothing
+(`workflow/bin/warmup.py`): a fresh JVM answered the harness's first burst in up to 5 s and timed checks out. It
+can fail without failing the deploy. Still, each deploy is a cold start: merge fixes in batches where you can. Running the deploy workflow by hand
 always deploys (check `fast` for the fast lane).
 
 ## Platform gotchas
