@@ -25,6 +25,11 @@ on:
         type: boolean
         default: false
 
+# No deploy: "[no deploy]" in the commit message (for a merged PR, its title) skips every job: no tests, no
+# image, no rollout, so no revision switch (requests can fail while one happens) and no Actions minutes. For
+# changes that don't need to be live: docs, workflow/, .claude/, specs, test-only and tooling changes. They go
+# out with the next push that deploys, whose tests cover them. It wins over [fast]; a manual run always deploys.
+#
 # Fast lane: "[fast]" in the commit message (for a merged PR, its title: it's in the merge commit's message),
 # or the fast input on a manual run. For a fix to a check that's losing points, when every minute counts:
 #   - the quality job (the test suite) is skipped, so deploy starts as soon as the image is pushed;
@@ -45,7 +50,7 @@ jobs:
   # The quality gate (workflow/quality-gate.md): the full test suite. Deploy needs it, so a failing
   # test never deploys.
   quality:
-    if: ${{ !(contains(github.event.head_commit.message, '[fast]') || inputs.fast) }}
+    if: ${{ !(contains(github.event.head_commit.message, '[fast]') || inputs.fast) && !contains(github.event.head_commit.message, '[no deploy]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -69,6 +74,7 @@ jobs:
   # Dockerfile's layers between runs (above all the dependency layer, until pom.xml changes). It never
   # touches app:latest: that's the deploy job's, after the tests.
   image:
+    if: ${{ !contains(github.event.head_commit.message, '[no deploy]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
