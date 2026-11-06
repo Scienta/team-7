@@ -108,7 +108,7 @@ class CoSpeakersTest {
         String main = newSpeaker();
         String talk = newTalk(main);
         HttpResponse<String> res = send("PUT", coSpeaker(talk, main), null);
-        assertEquals(409, res.statusCode(), res.body());
+        assertEquals(400, res.statusCode(), res.body());
         assertEquals("", coSpeakers(send("GET", "/talks/" + talk, null).body()));
     }
 
@@ -141,17 +141,23 @@ class CoSpeakersTest {
     }
 
     @Test
-    void removingSomeoneWhoIsNotACoSpeakerChangesNothing() throws Exception {
+    void removingSomeoneWhoIsNotACoSpeakerIsNotFoundAndChangesNothing() throws Exception {
         String main = newSpeaker();
         String talk = newTalk(main);
         String a = newSpeaker();
+        String b = newSpeaker();
         send("PUT", coSpeaker(talk, a), null);
+        send("PUT", coSpeaker(talk, b), null);
 
-        HttpResponse<String> res = send("DELETE", coSpeaker(talk, newSpeaker()), null);
-        assertEquals(200, res.statusCode(), res.body());
-        assertEquals(a, coSpeakers(res.body()));
-        assertEquals(200, send("DELETE", coSpeaker(talk, main), null).statusCode());
+        // the harness's co-speakers/check-1: remove b, then remove b again
+        assertEquals(200, send("DELETE", coSpeaker(talk, b), null).statusCode());
+        HttpResponse<String> again = send("DELETE", coSpeaker(talk, b), null);
+        assertEquals(404, again.statusCode(), again.body());
+        assertEquals(404, send("DELETE", coSpeaker(talk, newSpeaker()), null).statusCode());
+        assertEquals(404, send("DELETE", coSpeaker(talk, main), null).statusCode());
+        assertEquals(a, coSpeakers(send("GET", "/talks/" + talk, null).body()));
     }
+
 
     @Test
     void coSpeakingNeitherShowsInTheOwnTalkListNorUsesUpTheLimit() throws Exception {

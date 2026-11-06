@@ -64,7 +64,7 @@ HTTP 409
 
 # The main speaker can't co-speak their own talk
 PUT {{base_url}}/talks/{{talk}}/co-speakers/{{main}}
-HTTP 409
+HTTP 400
 
 # Unknown talk or speaker
 PUT {{base_url}}/talks/2147483647/co-speakers/{{a}}
@@ -86,7 +86,7 @@ HTTP 200
 [Asserts]
 jsonpath "$" count == 0
 
-# Remove B; A stays. Removing B again changes nothing
+# Remove B; A stays. Removing B again is a 404 and changes nothing
 DELETE {{base_url}}/talks/{{talk}}/co-speakers/{{b}}
 HTTP 200
 [Asserts]
@@ -94,6 +94,9 @@ jsonpath "$.coSpeakerIds" count == 1
 jsonpath "$.coSpeakerIds[0]" == {{a}}
 
 DELETE {{base_url}}/talks/{{talk}}/co-speakers/{{b}}
+HTTP 404
+
+GET {{base_url}}/talks/{{talk}}
 HTTP 200
 [Asserts]
 jsonpath "$.coSpeakerIds" count == 1
