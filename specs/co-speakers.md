@@ -42,3 +42,29 @@ components:
           items: { type: integer }
           description: the co-speakers' speaker ids, in the order they were added; [] when none
 ```
+
+## Team decisions (team-7)
+
+Not in the feature request; decided by the team and covered by `CoSpeakersTest` and `examples/co-speakers.hurl`.
+
+Responses, checked in this order (talk, speaker, main speaker, already a co-speaker, limit):
+
+- `200` with the Talk when the change is made, and also when it changes nothing: adding someone who already is a
+  co-speaker (even when the talk is full; they keep their place), or removing a registered speaker who isn't one
+  (including the main speaker).
+- `400` when an id in the path isn't a whole number.
+- `404` when the talk doesn't exist, or `speakerId` isn't a registered speaker (a path id, unlike `POST /talks`,
+  which answers `400` for an unknown `speakerId` in the body).
+- `409` when adding the talk's main speaker, or a third distinct co-speaker (the same code as the 3-talk limit).
+
+Order: a co-speaker who is removed and added again goes to the end of the list. `GET /talks?speakerId=` lists only
+talks where that speaker is the main speaker, like `/speakers/{id}/talks`.
+
+Co-speakers can be changed whatever the talk's status (Acceptance), and only the main speaker can withdraw a talk.
+
+Concurrency: adding and removing lock the talk's row (`SELECT … FOR UPDATE`) before counting, so concurrent additions
+can't go past two; a unique `(talk_id, speaker_id)` with `ON CONFLICT DO NOTHING` covers double-clicks. With the lock
+removed, `CoSpeakersTest.concurrentAdditionsNeverExceedTwoCoSpeakers` failed 2 runs out of 3.
+
+Open question for the product owner: are `409` (main speaker, third co-speaker) and `404` (unknown speaker) what
+they expect?

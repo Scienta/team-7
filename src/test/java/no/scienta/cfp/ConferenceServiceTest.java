@@ -23,7 +23,8 @@ class ConferenceServiceTest {
         speakerDao = mock(SpeakerDao.class);
         talkDao = mock(TalkDao.class);
         ratingDao = mock(RatingDao.class);
-        service = new ConferenceService(speakerDao, talkDao, ratingDao, mock(NotificationService.class));
+        service = new ConferenceService(speakerDao, talkDao, ratingDao, mock(CoSpeakerDao.class),
+                mock(NotificationService.class));
     }
 
     @Test
